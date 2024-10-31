@@ -12,13 +12,12 @@ use crate::{agent::Agent, config::Config};
 
 pub struct Pipeline<'a> {
     /// The Ai Agent
-    agent: Agent,
     config: PipelineConfig,
     agent: Agent<'a>,
 }
 
 impl<'a> Pipeline<'a> {
-    pub fn new(agent: Agent, config: &Config) -> Self {
+    pub fn new(agent: Agent<'a>, config: &Config) -> Self {
         Self {
             agent,
             config: config.into(),
