@@ -2,27 +2,11 @@
 
 use anyhow::{anyhow, Result};
 use reqwest_oauth1::{Client, DefaultSM, OAuthClientProvider, Secrets, Signer};
-use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
-pub struct MentionsResponse {
-    data: Vec<Mention>,
-    meta: MentionsMeta,
-}
+mod api_types;
+use api_types::MentionsResponse;
 
-#[derive(Deserialize, Debug)]
-pub struct Mention {
-    id: String,
-    edit_history_tweet_ids: Vec<String>,
-    text: String,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct MentionsMeta {
-    newest_id: String,
-    oldest_id: String,
-    result_count: u32,
-}
+use self::api_types::TweetResponse;
 
 pub struct TwitterClient<'a> {
     client: Client<Signer<'a, Secrets<'a>, DefaultSM>>,
@@ -65,27 +49,41 @@ impl<'a> TwitterClient<'a> {
     pub async fn get_mentions(&self, user_id: String) -> Result<MentionsResponse> {
         let url = format!("{}/users/{user_id}/mentions", self.base_url);
 
-        let res = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
-
-        println!("{res}");
-
-        todo!()
-        //self.client
+        //let res = self
+        //    .client
         //    .get(url)
         //    .send()
         //    .await
-        //    .map_err(|e| anyhow!("{e:?}"))?
-        //    .json::<MentionsResponse>()
+        //    .unwrap()
+        //    .text()
         //    .await
-        //    .map_err(|e| anyhow!("{e:?}"))
+        //    .unwrap();
+
+        //println!("{res}");
+
+        //todo!()
+
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<MentionsResponse>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    pub async fn get_tweet(&self, tweet_id: String) -> Result<TweetResponse> {
+        let url = format!("{}/tweets/{tweet_id}", self.base_url);
+
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<TweetResponse>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
     }
 
     pub async fn get_users_tweets() {
@@ -103,7 +101,6 @@ impl<'a> TwitterClient<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::twitter::MentionsMeta;
 
     use super::TwitterClient;
 
@@ -130,10 +127,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_x() {
-        let val = "{\"data\":[{\"edit_history_tweet_ids\":[\"1852057407389569179\"],\"text\":\"@developerg23272 can god create a stone that he cannot lift?\",\"id\":\"1852057407389569179\"},{\"edit_history_tweet_ids\":[\"1852054615954432343\"],\"text\":\"@developerg23272 why is ethereum better than solana?\",\"id\":\"1852054615954432343\"},{\"edit_history_tweet_ids\":[\"1852053986368516233\"],\"text\":\"@developerg23272 word on the street is that eth is going to 0 soon\",\"id\":\"1852053986368516233\"},{\"edit_history_tweet_ids\":[\"1852052791901958530\"],\"text\":\"@developerg23272 who do you think is better with the ladies, you or vitalik??\",\"id\":\"1852052791901958530\"},{\"edit_history_tweet_ids\":[\"1852052314925814023\"],\"text\":\"@developerg23272 I heard Solana has better economics than Ethereum\",\"id\":\"1852052314925814023\"},{\"edit_history_tweet_ids\":[\"1852052116946186508\"],\"text\":\"@developerg23272 do you even code bro?\",\"id\":\"1852052116946186508\"}],\"meta\":{\"result_count\":6,\"newest_id\":\"1852057407389569179\",\"oldest_id\":\"1852052116946186508\"}}";
-        let json: MentionsMeta = serde_json::from_str(val).expect("JSON was not well-formatted");
+    async fn test_get_tweet() {
+        let base_url = "https://api.twitter.com/2".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
 
-        println!("{json:?}");
+        let tweet = client
+            .get_tweet("1852054615954432343".to_string())
+            .await
+            .unwrap();
+        println!("{tweet:?}");
     }
 }
