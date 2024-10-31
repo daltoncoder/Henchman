@@ -16,4 +16,8 @@ impl Agent {
 
         todo!()
     }
+
+    pub fn run(&self) {
+        todo!()
+    }
 }

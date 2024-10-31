@@ -4,5 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+rand = "0.8.5"
 serde = {version = "1.0.214", features = ["derive"]}
+tokio = {version = "1.41.0", features = ["time", "macros"]}
 toml = "0.8.19"
