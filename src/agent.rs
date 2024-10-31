@@ -3,12 +3,12 @@ use crate::{prompts::Prompts, twitter::TwitterClient};
 /// The AI agent that tweets
 /// Should contain short term memory, long term memory, external context
 
-pub struct Agent {
+pub struct Agent<'a> {
     prompts: Prompts,
-    twitter_client: TwitterClient,
+    twitter_client: TwitterClient<'a>,
 }
 
-impl Agent {
+impl<'a> Agent<'a> {
     pub fn new() -> Self {
         // Create/seed database of long term memories
 
