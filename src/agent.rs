@@ -19,7 +19,10 @@ impl<'a> Agent<'a> {
             &config.x_access_token,
             &config.x_access_token_secret,
         );
-        let user_id = twitter_client.get_user_id(&config.x_username).await?.id;
+        let user_id = twitter_client
+            .get_user_info_by_username(&config.x_username)
+            .await?
+            .id;
 
         // Create/seed database of long term memories
 
@@ -37,12 +40,22 @@ impl<'a> Agent<'a> {
     }
 
     pub async fn respond_to_mentions(&self) -> Result<()> {
+        let max_num_mentions = 50; // TODO: make config
+        let max_num_tweets = 50; // TODO: make config
+
         let mentions = self
             .twitter_client
-            .get_mentions(&self.user_id, None)
+            .get_mentions(&self.user_id, Some(max_num_mentions))
             .await?;
 
-        for mention in mentions.data {}
+        for mention in mentions.data {
+            let recent_tweets = self
+                .twitter_client
+                .get_user_tweets(mention.author_id, Some(max_num_tweets))
+                .await?;
+            // TODO: look for tweets that mention the bot?
+            // TODO: get context from bot's timeline?
+        }
 
         Ok(())
     }

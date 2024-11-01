@@ -174,8 +174,23 @@ impl<'a> TwitterClient<'a> {
     }
 
     /// Retrieves the user info (username, name, user_id) for the user with the specified username.
-    pub async fn get_user_info(&self, username: &str) -> Result<User> {
+    pub async fn get_user_info_by_username(&self, username: &str) -> Result<User> {
         let url = format!("{}/users/by/username/{username}", self.base_url);
+
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<ApiResponse<User>>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
+    }
+
+    /// Retrieves the user info (username, name, user_id) for the user with the specified id.
+    pub async fn get_user_info_by_id(&self, user_id: &str) -> Result<User> {
+        let url = format!("{}/users/{user_id}", self.base_url);
 
         self.client
             .get(url)
@@ -313,7 +328,7 @@ mod tests {
 
     #[ignore]
     #[tokio::test]
-    async fn test_get_user_info() {
+    async fn test_get_user_info_by_username() {
         let base_url = "https://api.twitter.com/2".to_string();
         let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
         let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
@@ -327,7 +342,33 @@ mod tests {
             x_access_token_secret,
         );
 
-        let user = client.get_user_info("omarskittle").await.unwrap();
+        let user = client
+            .get_user_info_by_username("omarskittle")
+            .await
+            .unwrap();
+        println!("{user:?}");
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_get_user_info_by_id() {
+        let base_url = "https://api.twitter.com/2".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
+
+        let user = client
+            .get_user_info_by_id("1851820330513473536")
+            .await
+            .unwrap();
         println!("{user:?}");
     }
 }
