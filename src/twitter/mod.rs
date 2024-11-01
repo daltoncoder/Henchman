@@ -111,8 +111,28 @@ impl<'a> TwitterClient<'a> {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
-    pub async fn reply_to_tweet() {
-        todo!()
+    pub async fn reply_to_tweet(
+        &self,
+        content: String,
+        tweet_id: String,
+    ) -> Result<SendTweetResponse> {
+        let url = format!("{}/tweets", self.base_url);
+
+        let json = serde_json::json!({
+            "text": content,
+            "reply": { "in_reply_to_tweet_id": tweet_id }
+        });
+
+        self.client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .body(json.to_string())
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<SendTweetResponse>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
     }
 
     pub async fn get_user_id() {
@@ -207,6 +227,28 @@ mod tests {
         );
 
         let tweet = client.post_tweet("mic check 3".to_string()).await.unwrap();
+        println!("{tweet:?}");
+    }
+
+    #[tokio::test]
+    async fn test_reply_to_tweet() {
+        let base_url = "https://api.twitter.com/2".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
+
+        let tweet = client
+            .reply_to_tweet("oh really".to_string(), "1852054615954432343".to_string())
+            .await
+            .unwrap();
         println!("{tweet:?}");
     }
 }
