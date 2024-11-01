@@ -6,15 +6,11 @@ use reqwest_oauth1::{Client, DefaultSM, OAuthClientProvider, Secrets, Signer};
 mod api_types;
 use api_types::MentionsResponse;
 
-use self::api_types::{TweetResponse, TweetsResponse};
+use self::api_types::{SendTweetResponse, TweetResponse, TweetsResponse};
 
 pub struct TwitterClient<'a> {
     client: Client<Signer<'a, Secrets<'a>, DefaultSM>>,
     base_url: String,
-    //x_consumer_key: String,
-    //x_consumer_secret: String,
-    //x_access_token: String,
-    //x_access_token_secret: String,
 }
 
 impl<'a> TwitterClient<'a> {
@@ -35,16 +31,26 @@ impl<'a> TwitterClient<'a> {
         Self {
             client,
             base_url: url,
-            //x_consumer_key,
-            //x_consumer_secret,
-            //x_access_token,
-            //x_access_token_secret,
         }
     }
 
-    pub async fn post_tweet(&self) {
+    pub async fn post_tweet(&self, content: String) -> Result<SendTweetResponse> {
         let url = format!("{}/tweets", self.base_url);
-        todo!()
+
+        let json = serde_json::json!({
+            "text": content,
+        });
+
+        self.client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .body(json.to_string())
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<SendTweetResponse>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
     }
 
     pub async fn get_mentions(&self, user_id: String) -> Result<MentionsResponse> {
@@ -183,5 +189,24 @@ mod tests {
             .await
             .unwrap();
         println!("{tweets:?}");
+    }
+
+    #[tokio::test]
+    async fn test_post_tweet() {
+        let base_url = "https://api.twitter.com/2".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
+
+        let tweet = client.post_tweet("mic check 3".to_string()).await.unwrap();
+        println!("{tweet:?}");
     }
 }

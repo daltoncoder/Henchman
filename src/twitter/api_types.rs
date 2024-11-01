@@ -39,3 +39,15 @@ pub struct TweetsResponse {
     data: Vec<Tweet>,
     meta: Meta,
 }
+
+#[derive(Deserialize, Debug)]
+pub struct SendTweetResponse {
+    data: SendTweet,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SendTweet {
+    text: String,
+    id: String,
+    edit_history_tweet_ids: Vec<String>,
+}
