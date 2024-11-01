@@ -6,7 +6,9 @@ use reqwest_oauth1::{Client, DefaultSM, OAuthClientProvider, Secrets, Signer};
 mod api_types;
 use api_types::MentionsResponse;
 
-use self::api_types::{SendTweetResponse, TweetResponse, TweetsResponse};
+use crate::twitter::api_types::ApiResponse;
+
+use self::api_types::{SentTweet, Tweet, TweetsResponse, User};
 
 pub struct TwitterClient<'a> {
     client: Client<Signer<'a, Secrets<'a>, DefaultSM>>,
@@ -34,7 +36,7 @@ impl<'a> TwitterClient<'a> {
         }
     }
 
-    pub async fn post_tweet(&self, content: String) -> Result<SendTweetResponse> {
+    pub async fn post_tweet(&self, content: String) -> Result<SentTweet> {
         let url = format!("{}/tweets", self.base_url);
 
         let json = serde_json::json!({
@@ -48,9 +50,10 @@ impl<'a> TwitterClient<'a> {
             .send()
             .await
             .map_err(|e| anyhow!("{e:?}"))?
-            .json::<SendTweetResponse>()
+            .json::<ApiResponse<SentTweet>>()
             .await
             .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
     }
 
     pub async fn get_mentions(&self, user_id: String) -> Result<MentionsResponse> {
@@ -83,7 +86,7 @@ impl<'a> TwitterClient<'a> {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
-    pub async fn get_tweet(&self, tweet_id: String) -> Result<TweetResponse> {
+    pub async fn get_tweet(&self, tweet_id: String) -> Result<Tweet> {
         let url = format!("{}/tweets/{tweet_id}?tweet.fields=author_id", self.base_url);
 
         self.client
@@ -91,9 +94,10 @@ impl<'a> TwitterClient<'a> {
             .send()
             .await
             .map_err(|e| anyhow!("{e:?}"))?
-            .json::<TweetResponse>()
+            .json::<ApiResponse<Tweet>>()
             .await
             .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
     }
 
     pub async fn get_user_tweets(&self, user_id: String) -> Result<TweetsResponse> {
@@ -111,11 +115,7 @@ impl<'a> TwitterClient<'a> {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
-    pub async fn reply_to_tweet(
-        &self,
-        content: String,
-        tweet_id: String,
-    ) -> Result<SendTweetResponse> {
+    pub async fn reply_to_tweet(&self, content: String, tweet_id: String) -> Result<SentTweet> {
         let url = format!("{}/tweets", self.base_url);
 
         let json = serde_json::json!({
@@ -130,13 +130,24 @@ impl<'a> TwitterClient<'a> {
             .send()
             .await
             .map_err(|e| anyhow!("{e:?}"))?
-            .json::<SendTweetResponse>()
+            .json::<ApiResponse<SentTweet>>()
             .await
             .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
     }
 
-    pub async fn get_user_id() {
-        todo!()
+    pub async fn get_user_id(&self, username: String) -> Result<User> {
+        let url = format!("{}/users/by/username/{username}", self.base_url);
+
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<ApiResponse<User>>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
     }
 }
 
@@ -250,5 +261,27 @@ mod tests {
             .await
             .unwrap();
         println!("{tweet:?}");
+    }
+
+    #[tokio::test]
+    async fn test_get_user_id() {
+        let base_url = "https://api.twitter.com/2".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
+
+        let user = client
+            .get_user_id("mavonclarksdale".to_string())
+            .await
+            .unwrap();
+        println!("{user:?}");
     }
 }

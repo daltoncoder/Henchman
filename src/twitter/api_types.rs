@@ -1,53 +1,55 @@
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
+pub struct ApiResponse<T> {
+    pub data: T,
+}
+
+#[derive(Deserialize, Debug)]
 pub struct MentionsResponse {
-    data: Vec<Mention>,
-    meta: Meta,
+    pub data: Vec<Mention>,
+    pub meta: Meta,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Mention {
-    id: String,
-    author_id: String,
-    edit_history_tweet_ids: Vec<String>,
-    text: String,
+    pub id: String,
+    pub author_id: String,
+    pub edit_history_tweet_ids: Vec<String>,
+    pub text: String,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Meta {
-    newest_id: String,
-    oldest_id: String,
-    result_count: u32,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct TweetResponse {
-    data: Tweet,
+    pub newest_id: String,
+    pub oldest_id: String,
+    pub result_count: u32,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct Tweet {
-    text: String,
-    id: String,
-    author_id: String,
-    edit_history_tweet_ids: Vec<String>,
+    pub text: String,
+    pub id: String,
+    pub author_id: String,
+    pub edit_history_tweet_ids: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
 pub struct TweetsResponse {
-    data: Vec<Tweet>,
-    meta: Meta,
+    pub data: Vec<Tweet>,
+    pub meta: Meta,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct SendTweetResponse {
-    data: SendTweet,
+pub struct SentTweet {
+    pub text: String,
+    pub id: String,
+    pub edit_history_tweet_ids: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct SendTweet {
-    text: String,
-    id: String,
-    edit_history_tweet_ids: Vec<String>,
+pub struct User {
+    pub id: String,
+    pub name: String,
+    pub username: String,
 }
