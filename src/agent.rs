@@ -1,4 +1,4 @@
-use crate::{config::Config, prompts::Prompts, twitter::TwitterClient};
+use crate::{config::Config, db::DB, prompts::Prompts, twitter::TwitterClient};
 use anyhow::Result;
 
 /// The AI agent that tweets
@@ -7,6 +7,7 @@ use anyhow::Result;
 pub struct Agent<'a> {
     prompts: Prompts,
     twitter_client: TwitterClient<'a>,
+    db: DB,
     user_id: String,
 }
 
@@ -23,6 +24,7 @@ impl<'a> Agent<'a> {
             .get_user_info_by_username(&config.x_username)
             .await?
             .id;
+        let db = DB::new();
 
         // Create/seed database of long term memories
 
@@ -31,6 +33,7 @@ impl<'a> Agent<'a> {
         Ok(Self {
             prompts: Prompts::default(),
             twitter_client,
+            db,
             user_id,
         })
     }
@@ -55,6 +58,8 @@ impl<'a> Agent<'a> {
                 .await?;
             // TODO: look for tweets that mention the bot?
             // TODO: get context from bot's timeline?
+            // TODO: make tweets machine readable
+            // TODO: get username for each tweet
         }
 
         Ok(())

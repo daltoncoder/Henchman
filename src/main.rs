@@ -3,6 +3,8 @@ use prompts::Prompts;
 
 pub mod agent;
 pub mod config;
+pub mod db;
+pub mod openai;
 pub mod pipeline;
 pub mod prompts;
 pub mod twitter;
