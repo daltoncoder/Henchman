@@ -6,7 +6,7 @@ use reqwest_oauth1::{Client, DefaultSM, OAuthClientProvider, Secrets, Signer};
 mod api_types;
 use api_types::MentionsResponse;
 
-use self::api_types::TweetResponse;
+use self::api_types::{TweetResponse, TweetsResponse};
 
 pub struct TwitterClient<'a> {
     client: Client<Signer<'a, Secrets<'a>, DefaultSM>>,
@@ -42,12 +42,16 @@ impl<'a> TwitterClient<'a> {
         }
     }
 
-    pub async fn post_tweet() {
+    pub async fn post_tweet(&self) {
+        let url = format!("{}/tweets", self.base_url);
         todo!()
     }
 
     pub async fn get_mentions(&self, user_id: String) -> Result<MentionsResponse> {
-        let url = format!("{}/users/{user_id}/mentions", self.base_url);
+        let url = format!(
+            "{}/users/{user_id}/mentions?tweet.fields=author_id",
+            self.base_url
+        );
 
         //let res = self
         //    .client
@@ -74,7 +78,7 @@ impl<'a> TwitterClient<'a> {
     }
 
     pub async fn get_tweet(&self, tweet_id: String) -> Result<TweetResponse> {
-        let url = format!("{}/tweets/{tweet_id}", self.base_url);
+        let url = format!("{}/tweets/{tweet_id}?tweet.fields=author_id", self.base_url);
 
         self.client
             .get(url)
@@ -86,8 +90,19 @@ impl<'a> TwitterClient<'a> {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
-    pub async fn get_users_tweets() {
-        todo!()
+    pub async fn get_user_tweets(&self, user_id: String) -> Result<TweetsResponse> {
+        let url = format!(
+            "{}/users/{user_id}/tweets?tweet.fields=author_id",
+            self.base_url
+        );
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<TweetsResponse>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
     }
 
     pub async fn reply_to_tweet() {
@@ -146,5 +161,27 @@ mod tests {
             .await
             .unwrap();
         println!("{tweet:?}");
+    }
+
+    #[tokio::test]
+    async fn test_get_user_tweets() {
+        let base_url = "https://api.twitter.com/2".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
+
+        let tweets = client
+            .get_user_tweets("1852012860596981761".to_string())
+            .await
+            .unwrap();
+        println!("{tweets:?}");
     }
 }
