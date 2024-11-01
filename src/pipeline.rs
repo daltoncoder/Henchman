@@ -29,7 +29,6 @@ impl<'a> Pipeline<'a> {
         // Generate Ethereum Address
 
         // Do an initial run
-
         loop {
             let scroll_wait_time = self.config.get_scroll_sleep_time();
 
@@ -49,12 +48,13 @@ impl<'a> Pipeline<'a> {
 
                 let run_sleep_fut = tokio::time::sleep(run_sleep_time);
                 select! {
-                    _ = scroll_duration_fut => {
-                        todo!()
+                    _ = &mut scroll_duration_fut => {
+                        println!("End Scrolling");
+                        break;
                     }
 
                     _ = run_sleep_fut => {
-                        todo!()
+                        self.agent.run().await;
                     }
                 }
             }

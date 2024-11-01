@@ -17,7 +17,7 @@ impl<'a> Agent<'a> {
         todo!()
     }
 
-    pub fn run(&self) {
+    pub async fn run(&self) {
         todo!()
     }
 }
