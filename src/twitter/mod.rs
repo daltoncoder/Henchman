@@ -18,10 +18,10 @@ pub struct TwitterClient<'a> {
 impl<'a> TwitterClient<'a> {
     pub fn new(
         url: String,
-        x_consumer_key: String,
-        x_consumer_secret: String,
-        x_access_token: String,
-        x_access_token_secret: String,
+        x_consumer_key: &'a str,
+        x_consumer_secret: &'a str,
+        x_access_token: &'a str,
+        x_access_token_secret: &'a str,
     ) -> Self {
         let client = reqwest::Client::new();
 
@@ -36,31 +36,26 @@ impl<'a> TwitterClient<'a> {
         }
     }
 
-    pub async fn post_tweet(&self, content: String) -> Result<SentTweet> {
-        let url = format!("{}/tweets", self.base_url);
-
-        let json = serde_json::json!({
-            "text": content,
-        });
-
-        self.client
-            .post(url)
-            .header("Content-Type", "application/json")
-            .body(json.to_string())
-            .send()
-            .await
-            .map_err(|e| anyhow!("{e:?}"))?
-            .json::<ApiResponse<SentTweet>>()
-            .await
-            .map_err(|e| anyhow!("{e:?}"))
-            .map(|res| res.data)
-    }
-
-    pub async fn get_mentions(&self, user_id: String) -> Result<MentionsResponse> {
-        let url = format!(
-            "{}/users/{user_id}/mentions?tweet.fields=author_id",
+    /// Returns a list of tweets that mention the user with id `user_id`.
+    /// The list of tweets is ordered by date created (newest first).
+    /// By default, the list contains at most 10 tweets. We can increase this
+    /// limit by passing the 'max_results' param. The value has to be between 0 and 1000.
+    pub async fn get_mentions(
+        &self,
+        user_id: &str,
+        max_results: Option<u16>,
+    ) -> Result<MentionsResponse> {
+        let url = if let Some(max_results) = max_results {
+            format!(
+            "{}/users/{user_id}/mentions?tweet.fields=author_id,created_at&max_results={max_results}",
             self.base_url
-        );
+            )
+        } else {
+            format!(
+                "{}/users/{user_id}/mentions?tweet.fields=author_id,created_at",
+                self.base_url
+            )
+        };
 
         //let res = self
         //    .client
@@ -86,8 +81,12 @@ impl<'a> TwitterClient<'a> {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
+    /// Retrieves the tweet data for the tweet with id 'tweet_id'.
     pub async fn get_tweet(&self, tweet_id: String) -> Result<Tweet> {
-        let url = format!("{}/tweets/{tweet_id}?tweet.fields=author_id", self.base_url);
+        let url = format!(
+            "{}/tweets/{tweet_id}?tweet.fields=author_id,created_at",
+            self.base_url
+        );
 
         self.client
             .get(url)
@@ -100,11 +99,27 @@ impl<'a> TwitterClient<'a> {
             .map(|res| res.data)
     }
 
-    pub async fn get_user_tweets(&self, user_id: String) -> Result<TweetsResponse> {
-        let url = format!(
-            "{}/users/{user_id}/tweets?tweet.fields=author_id",
+    /// Returns a list of tweets created by the user with id `user_id`.
+    /// The list of tweets is ordered by date created (newest first).
+    /// By default, the list contains at most 10 tweets. We can increase this
+    /// limit by passing the 'max_results' param. The value has to be between 0 and 1000.
+    pub async fn get_user_tweets(
+        &self,
+        user_id: String,
+        max_results: Option<u16>,
+    ) -> Result<TweetsResponse> {
+        let url = if let Some(max_results) = max_results {
+            format!(
+            "{}/users/{user_id}/tweets?tweet.fields=author_id,created_at&max_results={max_results}",
             self.base_url
-        );
+            )
+        } else {
+            format!(
+                "{}/users/{user_id}/tweets?tweet.fields=author_id,created_at",
+                self.base_url
+            )
+        };
+
         self.client
             .get(url)
             .send()
@@ -115,6 +130,28 @@ impl<'a> TwitterClient<'a> {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
+    /// Posts a tweet and returns the tweet data on success.
+    pub async fn post_tweet(&self, content: String) -> Result<SentTweet> {
+        let url = format!("{}/tweets", self.base_url);
+
+        let json = serde_json::json!({
+            "text": content,
+        });
+
+        self.client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .body(json.to_string())
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<ApiResponse<SentTweet>>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
+    }
+
+    /// Replies to the tweet with id 'tweet_id'.
     pub async fn reply_to_tweet(&self, content: String, tweet_id: String) -> Result<SentTweet> {
         let url = format!("{}/tweets", self.base_url);
 
@@ -136,7 +173,8 @@ impl<'a> TwitterClient<'a> {
             .map(|res| res.data)
     }
 
-    pub async fn get_user_id(&self, username: String) -> Result<User> {
+    /// Retrieves the user info (username, name, user_id) for the user with the specified username.
+    pub async fn get_user_info(&self, username: &str) -> Result<User> {
         let url = format!("{}/users/by/username/{username}", self.base_url);
 
         self.client
@@ -160,10 +198,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_mentions() {
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
             x_consumer_key,
@@ -173,20 +211,22 @@ mod tests {
         );
 
         let mentions = client
-            .get_mentions("1852012860596981761".to_string())
+            .get_mentions("1852012860596981761", None)
             .await
             .unwrap();
-        println!("{mentions:?}");
+        for mention in mentions.data {
+            println!("{mention:?}");
+        }
     }
 
     #[ignore]
     #[tokio::test]
     async fn test_get_tweet() {
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
             x_consumer_key,
@@ -206,10 +246,10 @@ mod tests {
     #[tokio::test]
     async fn test_get_user_tweets() {
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
             x_consumer_key,
@@ -219,20 +259,23 @@ mod tests {
         );
 
         let tweets = client
-            .get_user_tweets("1852012860596981761".to_string())
+            .get_user_tweets("1851820330513473536".to_string(), None)
             .await
             .unwrap();
-        println!("{tweets:?}");
+        println!("num_tweets: {}", tweets.data.len());
+        for tweet in tweets.data {
+            println!("{tweet:?}");
+        }
     }
 
     #[ignore]
     #[tokio::test]
     async fn test_post_tweet() {
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
             x_consumer_key,
@@ -249,10 +292,10 @@ mod tests {
     #[tokio::test]
     async fn test_reply_to_tweet() {
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
             x_consumer_key,
@@ -270,12 +313,12 @@ mod tests {
 
     #[ignore]
     #[tokio::test]
-    async fn test_get_user_id() {
+    async fn test_get_user_info() {
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm".to_string();
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE".to_string();
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX".to_string();
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ".to_string();
+        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
+        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
+        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
+        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
             x_consumer_key,
@@ -284,10 +327,7 @@ mod tests {
             x_access_token_secret,
         );
 
-        let user = client
-            .get_user_id("mavonclarksdale".to_string())
-            .await
-            .unwrap();
+        let user = client.get_user_info("omarskittle").await.unwrap();
         println!("{user:?}");
     }
 }

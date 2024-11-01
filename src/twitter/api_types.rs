@@ -15,8 +15,9 @@ pub struct MentionsResponse {
 pub struct Mention {
     pub id: String,
     pub author_id: String,
-    pub edit_history_tweet_ids: Vec<String>,
     pub text: String,
+    pub edit_history_tweet_ids: Vec<String>,
+    pub created_at: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -32,6 +33,7 @@ pub struct Tweet {
     pub id: String,
     pub author_id: String,
     pub edit_history_tweet_ids: Vec<String>,
+    pub created_at: String,
 }
 
 #[derive(Deserialize, Debug)]

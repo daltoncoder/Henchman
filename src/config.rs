@@ -16,6 +16,8 @@ pub struct Config {
     pub x_client_id: String,
     pub x_client_secret: String,
     pub eth_rpc_url: String,
+    pub x_api_url: String,
+    pub x_username: String,
     pub scroll_sleep: Option<(u64, u64)>,
     pub scroll_duration: Option<(u64, u64)>,
     pub run_sleep: Option<(u64, u64)>,
