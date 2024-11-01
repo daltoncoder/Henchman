@@ -156,6 +156,7 @@ mod tests {
 
     use super::TwitterClient;
 
+    #[ignore]
     #[tokio::test]
     async fn test_get_mentions() {
         let base_url = "https://api.twitter.com/2".to_string();
@@ -178,6 +179,7 @@ mod tests {
         println!("{mentions:?}");
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_get_tweet() {
         let base_url = "https://api.twitter.com/2".to_string();
@@ -200,6 +202,7 @@ mod tests {
         println!("{tweet:?}");
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_get_user_tweets() {
         let base_url = "https://api.twitter.com/2".to_string();
@@ -222,6 +225,7 @@ mod tests {
         println!("{tweets:?}");
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_post_tweet() {
         let base_url = "https://api.twitter.com/2".to_string();
@@ -241,6 +245,7 @@ mod tests {
         println!("{tweet:?}");
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_reply_to_tweet() {
         let base_url = "https://api.twitter.com/2".to_string();
@@ -263,6 +268,7 @@ mod tests {
         println!("{tweet:?}");
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_get_user_id() {
         let base_url = "https://api.twitter.com/2".to_string();
