@@ -1,7 +1,6 @@
 #[derive(Debug)]
 pub struct Memory {
-    pub id: String,
-    pub content: String,
+    pub data: MemoryData,
     pub embedding: Embedding,
 }
 
@@ -33,4 +32,10 @@ impl Embedding {
     pub fn l2_norm(&self) -> f32 {
         self.data.iter().map(|x| x.powf(2.0)).sum::<f32>().sqrt()
     }
+}
+
+#[derive(Debug)]
+pub struct MemoryData {
+    pub id: String,
+    pub content: String,
 }

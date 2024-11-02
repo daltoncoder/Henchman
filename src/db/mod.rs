@@ -2,12 +2,13 @@ use anyhow::Result;
 use qdrant_client::{
     qdrant::{
         CreateCollectionBuilder, Distance, PointStruct, ScalarQuantizationBuilder,
-        UpsertPointsBuilder, VectorParamsBuilder,
+        SearchParamsBuilder, SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
     },
     Payload, Qdrant,
 };
+use uuid::Uuid;
 
-use self::types::Memory;
+use self::types::{Embedding, Memory, MemoryData};
 
 pub mod types;
 
@@ -46,18 +47,56 @@ impl DB {
             .map(|m| {
                 let payload: Payload = serde_json::json!(
                     {
-                        "id": m.id,
-                        "content": m.content
+                        "id": m.data.id,
+                        "content": m.data.content
                     }
                 )
                 .try_into()
                 .unwrap();
-                PointStruct::new(0, m.embedding.data, payload)
+                let id = Uuid::new_v4();
+                PointStruct::new(id.to_string(), m.embedding.data, payload)
             })
             .collect();
         self.client
             .upsert_points(UpsertPointsBuilder::new(collection_name, points))
             .await?;
         Ok(())
+    }
+
+    pub async fn get_k_most_similar_memories(
+        &self,
+        collection_name: &str,
+        embedding: Embedding,
+        k: u64,
+    ) -> Result<Vec<MemoryData>> {
+        let search_result = self
+            .client
+            .search_points(
+                SearchPointsBuilder::new(collection_name, embedding.data, k)
+                    //.filter(Filter::all([Condition::matches("bar", 12)]))
+                    .with_payload(true)
+                    .params(SearchParamsBuilder::default().exact(true)),
+            )
+            .await
+            .unwrap();
+
+        let res = search_result
+            .result
+            .iter()
+            .filter_map(|r| {
+                if let Some(content) = r.payload.get("content") {
+                    let content = content.as_str().unwrap().to_string();
+                    if let Some(id) = r.payload.get("id") {
+                        let id = id.as_str().unwrap().to_string();
+                        Some(MemoryData { id, content })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<MemoryData>>();
+        Ok(res)
     }
 }
