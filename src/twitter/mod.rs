@@ -209,20 +209,31 @@ mod tests {
 
     use super::TwitterClient;
 
-    #[ignore]
-    #[tokio::test]
-    async fn test_get_mentions() {
-        let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
-        let client = TwitterClient::new(
-            base_url,
+    fn get_secrets() -> (String, String, String, String) {
+        let x_consumer_key = "".to_string();
+        let x_consumer_secret = "".to_string();
+        let x_access_token = "".to_string();
+        let x_access_token_secret = "".to_string();
+        (
             x_consumer_key,
             x_consumer_secret,
             x_access_token,
             x_access_token_secret,
+        )
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_get_mentions() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
+        let base_url = "https://api.twitter.com/2".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let mentions = client
@@ -237,17 +248,15 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_get_tweet() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
-            x_consumer_key,
-            x_consumer_secret,
-            x_access_token,
-            x_access_token_secret,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let tweet = client
@@ -260,17 +269,15 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_get_user_tweets() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
-            x_consumer_key,
-            x_consumer_secret,
-            x_access_token,
-            x_access_token_secret,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let tweets = client
@@ -286,17 +293,15 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_post_tweet() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
-            x_consumer_key,
-            x_consumer_secret,
-            x_access_token,
-            x_access_token_secret,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let tweet = client.post_tweet("mic check 3".to_string()).await.unwrap();
@@ -306,17 +311,15 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_reply_to_tweet() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
-            x_consumer_key,
-            x_consumer_secret,
-            x_access_token,
-            x_access_token_secret,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let tweet = client
@@ -329,17 +332,15 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_get_user_info_by_username() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
-            x_consumer_key,
-            x_consumer_secret,
-            x_access_token,
-            x_access_token_secret,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let user = client
@@ -352,17 +353,15 @@ mod tests {
     #[ignore]
     #[tokio::test]
     async fn test_get_user_info_by_id() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
         let base_url = "https://api.twitter.com/2".to_string();
-        let x_consumer_key = "0TTOpmPT9ZjdlVWh5Ba1krstm";
-        let x_consumer_secret = "SCKhSvsF5EvuREb5PRaVrzKFcywhuBzWlAMnZSUkJmX5UmHxBE";
-        let x_access_token = "1852012860596981761-sVrVOcEMuskF6mCpbjwPbIZyu2wbkX";
-        let x_access_token_secret = "woK0aqO6YNB37A1E98vzl3rn3dBLUowxphiGcse6pcipJ";
         let client = TwitterClient::new(
             base_url,
-            x_consumer_key,
-            x_consumer_secret,
-            x_access_token,
-            x_access_token_secret,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
         );
 
         let user = client
