@@ -101,3 +101,62 @@ impl DB {
         Ok(res)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::db::{
+        types::{Embedding, Memory, MemoryData},
+        DB,
+    };
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_db() {
+        let db = DB::new("http://localhost:6334").unwrap();
+
+        let table = "test6";
+        db.create_collection(table, 3).await.unwrap();
+
+        let mem1 = Memory {
+            data: MemoryData {
+                id: String::from("1"),
+                content: String::from("hello"),
+            },
+            embedding: Embedding::new(vec![1.2, 2.2, 3.2]),
+        };
+        let mem2 = Memory {
+            data: MemoryData {
+                id: String::from("2"),
+                content: String::from("goodbye"),
+            },
+            embedding: Embedding::new(vec![1.1, 2.1, 3.1]),
+        };
+        let mem3 = Memory {
+            data: MemoryData {
+                id: String::from("3"),
+                content: String::from("foo"),
+            },
+            embedding: Embedding::new(vec![1.3, 2.3, 3.3]),
+        };
+        let mem4 = Memory {
+            data: MemoryData {
+                id: String::from("3"),
+                content: String::from("bar"),
+            },
+            embedding: Embedding::new(vec![1.4, 2.4, 3.4]),
+        };
+
+        let memories = vec![mem1, mem2, mem3, mem4];
+
+        db.upsert_memories(table, memories).await.unwrap();
+
+        let res = db
+            .get_k_most_similar_memories(table, Embedding::new(vec![1., 2., 3.]), 2)
+            .await
+            .unwrap();
+
+        for r in &res {
+            println!("{r:?}");
+        }
+    }
+}
