@@ -1,4 +1,6 @@
-use crate::{config::Config, db::DB, prompts::Prompts, twitter::TwitterClient};
+use crate::{
+    config::Config, db::DB, hyperbolic::HyperbolicClient, prompts::Prompts, twitter::TwitterClient,
+};
 use anyhow::Result;
 
 /// The AI agent that tweets
@@ -7,6 +9,7 @@ use anyhow::Result;
 pub struct Agent<'a> {
     prompts: Prompts,
     twitter_client: TwitterClient<'a>,
+    hyperbolic_client: HyperbolicClient,
     db: DB,
     user_id: String,
 }
@@ -24,7 +27,17 @@ impl<'a> Agent<'a> {
             .get_user_info_by_username(&config.x_username)
             .await?
             .id;
-        let db = DB::new("http://localhost:6334")?; // TODO: get from config
+        // TODO: we should use Docker compose to start the DB before starting this agent.
+        // For testing, pull the DB docker image with
+        // `docker pull qdrant/qdrant`
+        // and then run it with
+        // `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
+        let db = DB::new("http://localhost:6334")?; // TODO: get url from config
+
+        let hyperbolic_client = HyperbolicClient::new(
+            config.hyperbolic_api_key.clone(),
+            config.hyperbolic_api_url.clone(),
+        );
 
         // Create/seed database of long term memories
 
@@ -33,6 +46,7 @@ impl<'a> Agent<'a> {
         Ok(Self {
             prompts: Prompts::default(),
             twitter_client,
+            hyperbolic_client,
             db,
             user_id,
         })
