@@ -12,7 +12,7 @@ pub struct ApiResponse {
 pub struct EmbeddingData {
     pub object: String,
     pub index: usize,
-    pub embedding: Vec<f64>,
+    pub embedding: Vec<f32>,
 }
 
 #[derive(Deserialize, Debug)]

@@ -24,7 +24,7 @@ impl<'a> Agent<'a> {
             .get_user_info_by_username(&config.x_username)
             .await?
             .id;
-        let db = DB::new();
+        let db = DB::new("http://localhost:6334")?; // TODO: get from config
 
         // Create/seed database of long term memories
 
