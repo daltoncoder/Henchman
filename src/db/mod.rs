@@ -53,7 +53,8 @@ impl DB {
                 )
                 .try_into()
                 .unwrap();
-                let id = Uuid::new_v4();
+                let id_hash = fasthash::spooky::hash128(m.data.id);
+                let id = Uuid::from_bytes(id_hash.to_le_bytes());
                 PointStruct::new(id.to_string(), m.embedding.data, payload)
             })
             .collect();
