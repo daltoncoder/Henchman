@@ -8,7 +8,7 @@ use api_types::MentionsResponse;
 
 use crate::twitter::api_types::ApiResponse;
 
-use self::api_types::{SentTweet, Tweet, TweetsResponse, User};
+use self::api_types::{SentTweet, TimelineResponse, Tweet, TweetsResponse, User};
 
 pub struct TwitterClient<'a> {
     client: Client<Signer<'a, Secrets<'a>, DefaultSM>>,
@@ -77,6 +77,36 @@ impl<'a> TwitterClient<'a> {
             .await
             .map_err(|e| anyhow!("{e:?}"))?
             .json::<MentionsResponse>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    /// Returns a list of tweets and retweets posted by the user with `user_id`
+    /// or a users this account follows
+    /// We can set the  limit for the number of tweets by passing the 'max_results' param.
+    pub async fn get_timeline(
+        &self,
+        user_id: &str,
+        max_results: Option<u16>,
+    ) -> Result<TimelineResponse> {
+        let url = if let Some(max_results) = max_results {
+            format!(
+                "{}/users/{user_id}/timelines/reverse_chronological?max_results={max_results}",
+                self.base_url
+            )
+        } else {
+            format!(
+                "{}/users/{user_id}/timelines/reverse_chronological?",
+                self.base_url
+            )
+        };
+
+        self.client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<TimelineResponse>()
             .await
             .map_err(|e| anyhow!("{e:?}"))
     }
@@ -220,6 +250,29 @@ mod tests {
             x_access_token,
             x_access_token_secret,
         )
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_get_timeline() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
+        let base_url = "https://api.twitter.com/2".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            &x_consumer_key,
+            &x_consumer_secret,
+            &x_access_token,
+            &x_access_token_secret,
+        );
+
+        let tweets = client
+            .get_timeline("1852012860596981761", Some(10))
+            .await
+            .unwrap();
+        for tweet in tweets.data {
+            println!("{tweet:?}");
+        }
     }
 
     #[ignore]

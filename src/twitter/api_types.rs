@@ -55,3 +55,30 @@ pub struct User {
     pub name: String,
     pub username: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct TimelineResponse {
+    pub data: Vec<TimelineTweet>,
+    pub meta: TimelineMeta,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TimelineTweet {
+    pub edit_history_tweet_ids: Vec<String>,
+    pub article: Option<Article>,
+    pub text: String,
+    pub id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Article {
+    pub title: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TimelineMeta {
+    pub next_token: String,
+    pub result_count: u32,
+    pub newest_id: String,
+    pub oldest_id: String,
+}
