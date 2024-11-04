@@ -47,12 +47,12 @@ impl<'a> TwitterClient<'a> {
     ) -> Result<MentionsResponse> {
         let url = if let Some(max_results) = max_results {
             format!(
-            "{}/users/{user_id}/mentions?tweet.fields=author_id,created_at&max_results={max_results}",
+            "{}/users/{user_id}/mentions?tweet.fields=created_at&expansions=author_id&max_results={max_results}",
             self.base_url
             )
         } else {
             format!(
-                "{}/users/{user_id}/mentions?tweet.fields=author_id,created_at",
+                "{}/users/{user_id}/mentions?tweet.fields=created_at&expansions=author_id",
                 self.base_url
             )
         };
@@ -91,12 +91,12 @@ impl<'a> TwitterClient<'a> {
     ) -> Result<TimelineResponse> {
         let url = if let Some(max_results) = max_results {
             format!(
-                "{}/users/{user_id}/timelines/reverse_chronological?max_results={max_results}",
+                "{}/users/{user_id}/timelines/reverse_chronological?expansions=author_id&max_results={max_results}",
                 self.base_url
             )
         } else {
             format!(
-                "{}/users/{user_id}/timelines/reverse_chronological?",
+                "{}/users/{user_id}/timelines/reverse_chronological?expansions=author_id",
                 self.base_url
             )
         };
@@ -244,6 +244,7 @@ mod tests {
         let x_consumer_secret = "".to_string();
         let x_access_token = "".to_string();
         let x_access_token_secret = "".to_string();
+
         (
             x_consumer_key,
             x_consumer_secret,
@@ -267,9 +268,10 @@ mod tests {
         );
 
         let tweets = client
-            .get_timeline("1852012860596981761", Some(10))
+            .get_timeline("1852012860596981761", Some(5))
             .await
             .unwrap();
+        println!("users: {:?}", tweets.includes);
         for tweet in tweets.data {
             println!("{tweet:?}");
         }
@@ -293,6 +295,7 @@ mod tests {
             .get_mentions("1852012860596981761", None)
             .await
             .unwrap();
+        println!("users: {:?}", mentions.includes);
         for mention in mentions.data {
             println!("{mention:?}");
         }

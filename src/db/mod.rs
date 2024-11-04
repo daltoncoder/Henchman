@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::path::PathBuf;
+
+use anyhow::{anyhow, Result};
 use qdrant_client::{
     qdrant::{
         CreateCollectionBuilder, Distance, PointStruct, ScalarQuantizationBuilder,
@@ -6,27 +8,46 @@ use qdrant_client::{
     },
     Payload, Qdrant,
 };
+use rocksdb::{Options, DB};
 use uuid::Uuid;
 
 use self::types::{Embedding, Memory, MemoryData};
 
 pub mod types;
 
-pub struct DB {
-    client: Qdrant,
+const TWEET_IDS: &str = "tweet_ids";
+
+pub struct Database {
+    vec_db_client: Qdrant,
+    kv_db: DB,
 }
 
-impl DB {
-    pub fn new(db_url: &str) -> Result<Self> {
-        let client = Qdrant::from_url(db_url).build()?;
-        Ok(Self { client })
+impl Database {
+    pub fn new(vector_db_url: &str, kv_db_path: PathBuf) -> Result<Self> {
+        let vec_db_client = Qdrant::from_url(vector_db_url).build()?;
+
+        let mut db_options = Options::default();
+        db_options.create_if_missing(true);
+        db_options.create_missing_column_families(true);
+
+        let cf = vec![TWEET_IDS];
+        let kv_db = DB::open_cf(&db_options, kv_db_path, cf)?;
+
+        Ok(Self {
+            vec_db_client,
+            kv_db,
+        })
     }
 
     pub async fn create_collection(&self, collection_name: &str, vector_dim: u64) -> Result<()> {
-        if self.client.collection_exists(collection_name).await? {
+        if self
+            .vec_db_client
+            .collection_exists(collection_name)
+            .await?
+        {
             Ok(())
         } else {
-            self.client
+            self.vec_db_client
                 .create_collection(
                     CreateCollectionBuilder::new(collection_name)
                         .vectors_config(VectorParamsBuilder::new(vector_dim, Distance::Cosine))
@@ -58,7 +79,7 @@ impl DB {
                 PointStruct::new(id.to_string(), m.embedding.data, payload)
             })
             .collect();
-        self.client
+        self.vec_db_client
             .upsert_points(UpsertPointsBuilder::new(collection_name, points))
             .await?;
         Ok(())
@@ -71,7 +92,7 @@ impl DB {
         k: u64,
     ) -> Result<Vec<MemoryData>> {
         let search_result = self
-            .client
+            .vec_db_client
             .search_points(
                 SearchPointsBuilder::new(collection_name, embedding.data, k)
                     //.filter(Filter::all([Condition::matches("bar", 12)]))
@@ -100,19 +121,43 @@ impl DB {
             .collect::<Vec<MemoryData>>();
         Ok(res)
     }
+
+    pub fn insert_tweet_id(&self, tweet_id: &str) -> Result<()> {
+        let tweed_id_cf = self
+            .kv_db
+            .cf_handle(TWEET_IDS)
+            .expect("failed to get tweet id cf handle");
+        self.kv_db
+            .put_cf(&tweed_id_cf, tweet_id.as_bytes(), b"0")
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    pub fn tweet_id_exists(&self, tweet_id: &str) -> Result<bool> {
+        let tweed_id_cf = self
+            .kv_db
+            .cf_handle(TWEET_IDS)
+            .expect("failed to get tweet id cf handle");
+        self.kv_db
+            .get_cf(&tweed_id_cf, tweet_id.as_bytes())
+            .map(|v| v.is_some())
+            .map_err(|e| anyhow!("{e:?}"))
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use crate::db::{
         types::{Embedding, Memory, MemoryData},
-        DB,
+        Database,
     };
 
     #[ignore]
     #[tokio::test]
     async fn test_db() {
-        let db = DB::new("http://localhost:6334").unwrap();
+        let db =
+            Database::new("http://localhost:6334", PathBuf::from("/tmp/rocksdb_test")).unwrap();
 
         let table = "test6";
         db.create_collection(table, 3).await.unwrap();

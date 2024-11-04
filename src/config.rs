@@ -19,6 +19,7 @@ pub struct Config {
     pub x_api_url: String,
     pub hyperbolic_api_url: String,
     pub x_username: String,
+    pub kv_db_path: String,
     pub scroll_sleep: Option<(u64, u64)>,
     pub scroll_duration: Option<(u64, u64)>,
     pub run_sleep: Option<(u64, u64)>,

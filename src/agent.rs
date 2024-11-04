@@ -1,5 +1,8 @@
+use std::path::PathBuf;
+
 use crate::{
-    config::Config, db::DB, hyperbolic::HyperbolicClient, prompts::Prompts, twitter::TwitterClient,
+    config::Config, db::Database, hyperbolic::HyperbolicClient, prompts::Prompts,
+    twitter::TwitterClient,
 };
 use anyhow::Result;
 
@@ -10,7 +13,7 @@ pub struct Agent<'a> {
     prompts: Prompts,
     twitter_client: TwitterClient<'a>,
     hyperbolic_client: HyperbolicClient,
-    db: DB,
+    db: Database,
     user_id: String,
 }
 
@@ -32,7 +35,7 @@ impl<'a> Agent<'a> {
         // `docker pull qdrant/qdrant`
         // and then run it with
         // `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
-        let db = DB::new("http://localhost:6334")?; // TODO: get url from config
+        let db = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
 
         let hyperbolic_client = HyperbolicClient::new(
             config.hyperbolic_api_key.clone(),
