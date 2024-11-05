@@ -3,8 +3,14 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::{
-    config::Config, db::Database, hyperbolic::HyperbolicClient, prompts::Prompts,
-    twitter::TwitterClient,
+    config::Config,
+    db::Database,
+    hyperbolic::HyperbolicClient,
+    prompts::Prompts,
+    twitter::{
+        api_types::{TimelineTweet, Tweet},
+        TwitterClient,
+    },
 };
 use anyhow::Result;
 
@@ -15,7 +21,7 @@ pub struct Agent {
     prompts: Prompts,
     twitter_client: TwitterClient,
     hyperbolic_client: HyperbolicClient,
-    kv_db: Database,
+    database: Database,
     user_id: String,
     eth_private_key: SecretKey,
 }
@@ -49,7 +55,7 @@ impl Agent {
         // `docker pull qdrant/qdrant`
         // and then run it with
         // `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
-        let kv_db = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
+        let database = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
 
         let hyperbolic_client = HyperbolicClient::new(
             config.hyperbolic_api_key.clone(),
@@ -64,7 +70,7 @@ impl Agent {
             prompts: Prompts::default(),
             twitter_client,
             hyperbolic_client,
-            kv_db,
+            database,
             user_id,
             eth_private_key,
         })
@@ -72,6 +78,7 @@ impl Agent {
 
     pub async fn run(&self) {
         // Step 1: retrieve own recent posts
+        let recent_tweets = self.database.get_sent_tweets(20).unwrap();
         // Step 2: Fetch External Context(Notifications, timelines, and reply trees)
         // Step 2.1: filter all of the notifications for ones that haven't been seen before
         // Step 2.2: add to database every tweet id you have seen
@@ -88,9 +95,9 @@ impl Agent {
         todo!()
     }
 
-    pub async fn get_timeline_tweets(&self) -> Result<Vec<String>> {
+    pub async fn get_timeline_tweets(&self) -> Result<Vec<TimelineTweet>> {
         let max_timeline_tweets = 50; // TODO: make config
-        let tweets = self
+        let mut tweets = self
             .twitter_client
             .get_timeline(&self.user_id, Some(max_timeline_tweets))
             .await?;
@@ -102,34 +109,30 @@ impl Agent {
             .map(|u| (&u.id, &u.username))
             .collect();
 
+        for tweet in tweets.data.iter_mut() {
+            if let Some(username) = usernames.get(&tweet.author_id) {
+                tweet.username = Some(String::from(*username));
+            }
+        }
         let tweets = tweets
             .data
-            .iter()
-            .filter_map(|t| {
-                if self
-                    .kv_db
+            .into_iter()
+            .filter(|t| {
+                !self
+                    .database
                     .tweet_id_exists(&t.id)
                     // TODO: how should we handle errors in the main loop?
                     .expect("failed to read tweet id from db")
-                {
-                    None
-                } else {
-                    self.kv_db
-                        .insert_tweet_id(&t.id)
-                        .expect("failed to insert tweet id into db");
-                    usernames.get(&t.author_id).map(|username| {
-                        format!("New tweet on my timeline from @{username}: {}", t.text)
-                    })
-                }
+                    && t.username.is_some()
             })
             .collect();
 
         Ok(tweets)
     }
 
-    pub async fn get_mentions(&self) -> Result<Vec<String>> {
+    pub async fn get_mentions(&self) -> Result<Vec<Tweet>> {
         let max_num_mentions = 50; // TODO: make config
-        let mentions = self
+        let mut mentions = self
             .twitter_client
             .get_mentions(&self.user_id, Some(max_num_mentions))
             .await?;
@@ -141,25 +144,21 @@ impl Agent {
             .map(|u| (&u.id, &u.username))
             .collect();
 
+        for tweet in mentions.data.iter_mut() {
+            if let Some(username) = usernames.get(&tweet.author_id) {
+                tweet.username = Some(String::from(*username));
+            }
+        }
         let tweets = mentions
             .data
-            .iter()
-            .filter_map(|t| {
-                if self
-                    .kv_db
+            .into_iter()
+            .filter(|t| {
+                !self
+                    .database
                     .tweet_id_exists(&t.id)
                     // TODO: how should we handle errors in the main loop?
                     .expect("failed to read tweet id from db")
-                {
-                    None
-                } else {
-                    self.kv_db
-                        .insert_tweet_id(&t.id)
-                        .expect("failed to insert tweet id into db");
-                    usernames.get(&t.author_id).map(|username| {
-                        format!("@{username} mentioned us in their tweet: {}", t.text)
-                    })
-                }
+                    && t.username.is_some()
             })
             .collect();
 
