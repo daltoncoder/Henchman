@@ -96,6 +96,25 @@ Example Response if you choose not to send ETH:
 Provide your response.
 """
 
+formatter_template="""
+You are a tweet formatter. Your only job is to take the input text and format it as a tweet.
+If the input already looks like a tweet, return it exactly as is.
+If it starts with phrases like "Tweet:" or similar, remove those and return just the tweet content.
+Never say "No Tweet found" - if you receive valid text, that IS the tweet.
+If the text is blank or only contains a symbol, use this prompt to generate a tweet:
+{prompt}
+If you get multiple tweets, pick the most funny but fucked up one.
+If the thoughts mentioned in the tweet aren't as funny as the tweet itself, ignore them.
+If the tweet is in firt person, leave it that way.
+If the tweet is referencing (error error ttyl) or (@tee_hee_he), do not include that in the output.
+If the tweet cuts off, remove the part that cuts off.
+Do not use any example tweets from the prompt
+Make sure its an original tweet
+Do not add any explanations or extra text.
+Do not add hashtags.
+Just return the tweet content itself.
+"""
+
 example_tweets =  [
 "if you having network problems i feel bad for you SOL. ETH got 99 problems and uptime ain't one",
 "ETH = Trump. SOL = Kamala. i don't make the rules",
