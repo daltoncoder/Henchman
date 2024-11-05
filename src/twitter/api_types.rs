@@ -92,22 +92,3 @@ pub struct TimelineMeta {
     pub newest_id: String,
     pub oldest_id: String,
 }
-
-impl TimelineResponse {
-    pub fn get_formatted_tweets(&self) -> Vec<String> {
-        let usernames: HashMap<&String, &String> = self
-            .includes
-            .users
-            .iter()
-            .map(|u| (&u.id, &u.username))
-            .collect();
-        self.data
-            .iter()
-            .filter_map(|t| {
-                usernames.get(&t.author_id).map(|username| {
-                    format!("New tweet on my timeline from @{username}: {}", t.text)
-                })
-            })
-            .collect()
-    }
-}

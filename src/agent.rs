@@ -1,4 +1,5 @@
 use ethsign::SecretKey;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::{
@@ -14,7 +15,7 @@ pub struct Agent {
     prompts: Prompts,
     twitter_client: TwitterClient,
     hyperbolic_client: HyperbolicClient,
-    db: Database,
+    kv_db: Database,
     user_id: String,
     eth_private_key: SecretKey,
 }
@@ -48,7 +49,7 @@ impl Agent {
         // `docker pull qdrant/qdrant`
         // and then run it with
         // `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
-        let db = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
+        let kv_db = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
 
         let hyperbolic_client = HyperbolicClient::new(
             config.hyperbolic_api_key.clone(),
@@ -63,7 +64,7 @@ impl Agent {
             prompts: Prompts::default(),
             twitter_client,
             hyperbolic_client,
-            db,
+            kv_db,
             user_id,
             eth_private_key,
         })
@@ -83,28 +84,106 @@ impl Agent {
         // Step 7: Score siginigicance of the new post
         // Step 8: Store the new post in long term memory if significant enough
         // Step 9: Submit Post
+
         todo!()
     }
 
-    pub async fn respond_to_mentions(&self) -> Result<()> {
-        let max_num_mentions = 50; // TODO: make config
-        let max_num_tweets = 50; // TODO: make config
+    pub async fn get_timeline_tweets(&self) -> Result<Vec<String>> {
+        let max_timeline_tweets = 50; // TODO: make config
+        let tweets = self
+            .twitter_client
+            .get_timeline(&self.user_id, Some(max_timeline_tweets))
+            .await?;
 
+        let usernames: HashMap<&String, &String> = tweets
+            .includes
+            .users
+            .iter()
+            .map(|u| (&u.id, &u.username))
+            .collect();
+
+        let tweets = tweets
+            .data
+            .iter()
+            .filter_map(|t| {
+                if self
+                    .kv_db
+                    .tweet_id_exists(&t.id)
+                    // TODO: how should we handle errors in the main loop?
+                    .expect("failed to read tweet id from db")
+                {
+                    None
+                } else {
+                    self.kv_db
+                        .insert_tweet_id(&t.id)
+                        .expect("failed to insert tweet id into db");
+                    usernames.get(&t.author_id).map(|username| {
+                        format!("New tweet on my timeline from @{username}: {}", t.text)
+                    })
+                }
+            })
+            .collect();
+
+        Ok(tweets)
+    }
+
+    pub async fn get_mentions(&self) -> Result<Vec<String>> {
+        let max_num_mentions = 50; // TODO: make config
         let mentions = self
             .twitter_client
             .get_mentions(&self.user_id, Some(max_num_mentions))
             .await?;
 
-        for mention in mentions.data {
-            let recent_tweets = self
-                .twitter_client
-                .get_user_tweets(mention.author_id, Some(max_num_tweets))
-                .await?;
-            // TODO: look for tweets that mention the bot?
-            // TODO: get context from bot's timeline?
-            // TODO: make tweets machine readable
-            // TODO: get username for each tweet
-        }
+        let usernames: HashMap<&String, &String> = mentions
+            .includes
+            .users
+            .iter()
+            .map(|u| (&u.id, &u.username))
+            .collect();
+
+        let tweets = mentions
+            .data
+            .iter()
+            .filter_map(|t| {
+                if self
+                    .kv_db
+                    .tweet_id_exists(&t.id)
+                    // TODO: how should we handle errors in the main loop?
+                    .expect("failed to read tweet id from db")
+                {
+                    None
+                } else {
+                    self.kv_db
+                        .insert_tweet_id(&t.id)
+                        .expect("failed to insert tweet id into db");
+                    usernames.get(&t.author_id).map(|username| {
+                        format!("@{username} mentioned us in their tweet: {}", t.text)
+                    })
+                }
+            })
+            .collect();
+
+        Ok(tweets)
+    }
+
+    pub async fn respond_to_mentions(&self) -> Result<()> {
+        //let max_num_tweets = 50; // TODO: make config
+
+        //let mentions = self
+        //    .twitter_client
+        //    .get_mentions(&self.user_id, Some(max_num_mentions))
+        //    .await?;
+
+        //for mention in mentions.data {
+        //    let recent_tweets = self
+        //        .twitter_client
+        //        .get_user_tweets(mention.author_id, Some(max_num_tweets))
+        //        .await?;
+        //    // TODO: look for tweets that mention the bot?
+        //    // TODO: get context from bot's timeline?
+        //    // TODO: make tweets machine readable
+        //    // TODO: get username for each tweet
+        //}
 
         Ok(())
     }
