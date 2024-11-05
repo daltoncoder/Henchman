@@ -3,7 +3,7 @@
 use anyhow::{anyhow, Result};
 use reqwest_oauth1::{Client, DefaultSM, OAuthClientProvider, Secrets, Signer};
 
-mod api_types;
+pub mod api_types;
 use api_types::MentionsResponse;
 
 use crate::twitter::api_types::ApiResponse;

@@ -8,14 +8,17 @@ use qdrant_client::{
     },
     Payload, Qdrant,
 };
-use rocksdb::{Options, DB};
+use rocksdb::{IteratorMode, Options, DB};
 use uuid::Uuid;
+
+use crate::twitter::api_types::SentTweet;
 
 use self::types::{Embedding, Memory, MemoryData};
 
 pub mod types;
 
 const TWEET_IDS: &str = "tweet_ids";
+const SENT_TWEETS: &str = "sent-tweets";
 
 pub struct Database {
     vec_db_client: Qdrant,
@@ -30,7 +33,7 @@ impl Database {
         db_options.create_if_missing(true);
         db_options.create_missing_column_families(true);
 
-        let cf = vec![TWEET_IDS];
+        let cf = vec![TWEET_IDS, SENT_TWEETS];
         let kv_db = DB::open_cf(&db_options, kv_db_path, cf)?;
 
         Ok(Self {
@@ -142,20 +145,53 @@ impl Database {
             .map(|v| v.is_some())
             .map_err(|e| anyhow!("{e:?}"))
     }
+
+    pub fn insert_sent_tweet(&self, created_at: u128, tweet: SentTweet) -> Result<()> {
+        let sent_tweed_cf = self
+            .kv_db
+            .cf_handle(SENT_TWEETS)
+            .expect("failed to get sent tweets cf handle");
+        let tweet_bytes = bincode::serialize(&tweet)?;
+        self.kv_db
+            .put_cf(&sent_tweed_cf, created_at.to_be_bytes(), &tweet_bytes)
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    pub fn get_sent_tweets(&self, max_num: usize) -> Result<Vec<SentTweet>> {
+        let sent_tweed_cf = self
+            .kv_db
+            .cf_handle(SENT_TWEETS)
+            .expect("failed to get sent tweet cf handle");
+        let iter = self.kv_db.iterator_cf(sent_tweed_cf, IteratorMode::End);
+        let mut tweets = Vec::with_capacity(max_num);
+        for (_key, val) in iter.flatten() {
+            if tweets.len() >= max_num {
+                break;
+            }
+            if let Ok(tweet) = bincode::deserialize::<SentTweet>(&val) {
+                tweets.push(tweet);
+            }
+        }
+
+        Ok(tweets)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
-    use crate::db::{
-        types::{Embedding, Memory, MemoryData},
-        Database,
+    use crate::{
+        db::{
+            types::{Embedding, Memory, MemoryData},
+            Database,
+        },
+        twitter::api_types::SentTweet,
     };
 
     #[ignore]
     #[tokio::test]
-    async fn test_db() {
+    async fn test_vector_db() {
         let db =
             Database::new("http://localhost:6334", PathBuf::from("/tmp/rocksdb_test")).unwrap();
 
@@ -203,5 +239,53 @@ mod tests {
         for r in &res {
             println!("{r:?}");
         }
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_insert_sent_tweets() {
+        let db =
+            Database::new("http://localhost:6334", PathBuf::from("/tmp/rocksdb_test")).unwrap();
+
+        db.insert_sent_tweet(
+            2,
+            SentTweet {
+                id: "2".to_string(),
+                text: "".to_string(),
+                edit_history_tweet_ids: vec![],
+            },
+        )
+        .unwrap();
+        db.insert_sent_tweet(
+            3,
+            SentTweet {
+                id: "3".to_string(),
+                text: "".to_string(),
+                edit_history_tweet_ids: vec![],
+            },
+        )
+        .unwrap();
+        db.insert_sent_tweet(
+            4,
+            SentTweet {
+                id: "4".to_string(),
+                text: "".to_string(),
+                edit_history_tweet_ids: vec![],
+            },
+        )
+        .unwrap();
+        db.insert_sent_tweet(
+            1,
+            SentTweet {
+                id: "1".to_string(),
+                text: "".to_string(),
+                edit_history_tweet_ids: vec![],
+            },
+        )
+        .unwrap();
+
+        let tweets = db.get_sent_tweets(2).unwrap();
+        assert_eq!(tweets[0].id, "4");
+        assert_eq!(tweets[1].id, "3");
     }
 }

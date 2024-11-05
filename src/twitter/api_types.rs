@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug)]
 pub struct ApiResponse<T> {
@@ -45,7 +43,7 @@ pub struct TweetsResponse {
     pub meta: Meta,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SentTweet {
     pub text: String,
     pub id: String,
