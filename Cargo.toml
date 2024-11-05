@@ -16,3 +16,4 @@ qdrant-client = "1.12.1"
 uuid = { version = "1.11", features = ["v4"] }
 fasthash = "0.4"
 rocksdb = "0.22"
+ethsign = "0.9.0"

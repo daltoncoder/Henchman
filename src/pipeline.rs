@@ -4,20 +4,26 @@
 // During this time bot might make several posts
 // Afterwards it should sleep for for a random amount of time to simulate getting off twitter
 
+use ethsign::SecretKey;
 use rand::Rng;
 use std::time::Duration;
 use tokio::select;
 
 use crate::{agent::Agent, config::Config};
 
-pub struct Pipeline<'a> {
+pub struct Pipeline {
     /// The Ai Agent
     config: PipelineConfig,
-    agent: Agent<'a>,
+    agent: Agent,
 }
 
-impl<'a> Pipeline<'a> {
-    pub fn new(agent: Agent<'a>, config: &Config) -> Self {
+impl Pipeline {
+    pub async fn new(config: &Config) -> Self {
+        let pipeline_config: PipelineConfig = config.into();
+        let agent: Agent = Agent::new(config.clone(), generate_eth_private_key())
+            .await
+            .expect("Failed to create Agent");
+
         Self {
             agent,
             config: config.into(),
@@ -140,6 +146,16 @@ impl Default for PipelineConfig {
             run_sleep_max: 180,
         }
     }
+}
+
+fn generate_eth_private_key() -> SecretKey {
+    let mut rng = rand::thread_rng();
+    let mut random_bytes = [0u8; 32];
+
+    rng.fill(&mut random_bytes);
+
+    // todo i think there is a nonzero chance this could be out of range of the eliptic curve
+    SecretKey::from_raw(&random_bytes).expect("Failed to generate ethereum key")
 }
 
 #[test]

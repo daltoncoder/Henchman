@@ -10,22 +10,22 @@ use crate::twitter::api_types::ApiResponse;
 
 use self::api_types::{SentTweet, TimelineResponse, Tweet, TweetsResponse, User};
 
-pub struct TwitterClient<'a> {
-    client: Client<Signer<'a, Secrets<'a>, DefaultSM>>,
+pub struct TwitterClient {
+    client: Client<Signer<'static, Secrets<'static>, DefaultSM>>,
     base_url: String,
 }
 
-impl<'a> TwitterClient<'a> {
+impl TwitterClient {
     pub fn new(
         url: String,
-        x_consumer_key: &'a str,
-        x_consumer_secret: &'a str,
-        x_access_token: &'a str,
-        x_access_token_secret: &'a str,
+        x_consumer_key: String,
+        x_consumer_secret: String,
+        x_access_token: String,
+        x_access_token_secret: String,
     ) -> Self {
         let client = reqwest::Client::new();
 
-        let secrets = Secrets::new(x_consumer_key, x_consumer_secret)
+        let secrets: Secrets = Secrets::new(x_consumer_key, x_consumer_secret)
             .token(x_access_token, x_access_token_secret);
 
         let client = client.oauth1(secrets);
@@ -261,10 +261,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let tweets = client
@@ -285,10 +285,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let mentions = client
@@ -309,10 +309,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let tweet = client
@@ -330,10 +330,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let tweets = client
@@ -354,10 +354,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let tweet = client.post_tweet("mic check 3".to_string()).await.unwrap();
@@ -372,10 +372,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let tweet = client
@@ -393,10 +393,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let user = client
@@ -414,10 +414,10 @@ mod tests {
         let base_url = "https://api.twitter.com/2".to_string();
         let client = TwitterClient::new(
             base_url,
-            &x_consumer_key,
-            &x_consumer_secret,
-            &x_access_token,
-            &x_access_token_secret,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
         );
 
         let user = client

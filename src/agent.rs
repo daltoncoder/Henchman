@@ -1,3 +1,4 @@
+use ethsign::SecretKey;
 use std::path::PathBuf;
 
 use crate::{
@@ -9,27 +10,39 @@ use anyhow::Result;
 /// The AI agent that tweets
 /// Should contain short term memory, long term memory, external context
 
-pub struct Agent<'a> {
+pub struct Agent {
     prompts: Prompts,
-    twitter_client: TwitterClient<'a>,
+    twitter_client: TwitterClient,
     hyperbolic_client: HyperbolicClient,
     db: Database,
     user_id: String,
+    eth_private_key: SecretKey,
 }
 
-impl<'a> Agent<'a> {
-    pub async fn new(config: &'a Config) -> Result<Self> {
+impl Agent {
+    pub async fn new(config: Config, eth_private_key: SecretKey) -> Result<Self> {
+        let Config {
+            x_api_url,
+            x_consumer_key,
+            x_consumer_key_secret,
+            x_access_token,
+            x_access_token_secret,
+            x_username,
+            ..
+        } = config;
+
         let twitter_client = TwitterClient::new(
-            config.x_api_url.clone(),
-            &config.x_consumer_key,
-            &config.x_consumer_key_secret,
-            &config.x_access_token,
-            &config.x_access_token_secret,
+            x_api_url,
+            x_consumer_key,
+            x_consumer_key_secret,
+            x_access_token,
+            x_access_token_secret,
         );
         let user_id = twitter_client
-            .get_user_info_by_username(&config.x_username)
+            .get_user_info_by_username(&x_username)
             .await?
             .id;
+
         // TODO: we should use Docker compose to start the DB before starting this agent.
         // For testing, pull the DB docker image with
         // `docker pull qdrant/qdrant`
@@ -52,10 +65,24 @@ impl<'a> Agent<'a> {
             hyperbolic_client,
             db,
             user_id,
+            eth_private_key,
         })
     }
 
     pub async fn run(&self) {
+        // Step 1: retrieve own recent posts
+        // Step 2: Fetch External Context(Notifications, timelines, and reply trees)
+        // Step 2.1: filter all of the notifications for ones that haven't been seen before
+        // Step 2.2: add to database every tweet id you have seen
+        // Step 2.3: Check wallet address in posts and decide if we should take onchain action
+        // Step 2.4: Decide to follow any users
+        // Step 3: Generate Short-term memory
+        // Step 4: Create embedding for short term memory
+        // Step 5: Retrieve relevent long-term memories
+        // Step 6: Generate new post or reply
+        // Step 7: Score siginigicance of the new post
+        // Step 8: Store the new post in long term memory if significant enough
+        // Step 9: Submit Post
         todo!()
     }
 
