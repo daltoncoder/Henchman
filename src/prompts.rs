@@ -36,7 +36,7 @@ impl Prompts {
 
         let ac = AhoCorasick::new(patterns).unwrap();
 
-        ac.replace_all(&self.tweet_template, replace_with)
+        ac.replace_all(&self.follow_template, replace_with)
     }
 
     pub fn get_tweet_prompt(
