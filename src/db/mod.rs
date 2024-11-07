@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use qdrant_client::{
     qdrant::{
         CreateCollectionBuilder, Distance, PointStruct, ScalarQuantizationBuilder,
@@ -18,7 +18,7 @@ use self::types::{Embedding, Memory, MemoryData};
 pub mod types;
 
 const TWEET_IDS: &str = "tweet_ids";
-const SENT_TWEETS: &str = "sent-tweets";
+const MEMORY_DATA: &str = "memory-data";
 
 pub struct Database {
     vec_db_client: Qdrant,
@@ -33,7 +33,7 @@ impl Database {
         db_options.create_if_missing(true);
         db_options.create_missing_column_families(true);
 
-        let cf = vec![TWEET_IDS, SENT_TWEETS];
+        let cf = vec![TWEET_IDS, MEMORY_DATA];
         let kv_db = DB::open_cf(&db_options, kv_db_path, cf)?;
 
         Ok(Self {
@@ -67,24 +67,29 @@ impl Database {
         memories: Vec<Memory>,
     ) -> Result<()> {
         let points: Vec<PointStruct> = memories
-            .into_iter()
+            .iter()
             .map(|m| {
                 let payload: Payload = serde_json::json!(
                     {
-                        "id": m.data.id,
-                        "content": m.data.content
+                        "id": m.data.id
                     }
                 )
                 .try_into()
                 .unwrap();
-                let id_hash = fasthash::spooky::hash128(m.data.id);
+                let id_hash = fasthash::spooky::hash128(m.data.id.to_le_bytes());
                 let id = Uuid::from_bytes(id_hash.to_le_bytes());
-                PointStruct::new(id.to_string(), m.embedding.data, payload)
+                PointStruct::new(id.to_string(), m.embedding.data.clone(), payload)
             })
             .collect();
         self.vec_db_client
             .upsert_points(UpsertPointsBuilder::new(collection_name, points))
             .await?;
+        // TODO: we should make this atomic. If inserting the memory data fails, we remove the
+        // embedding etc.
+        for memory in memories {
+            self.insert_memory_data(memory.data)?;
+        }
+
         Ok(())
     }
 
@@ -105,24 +110,25 @@ impl Database {
             .await
             .unwrap();
 
-        let res = search_result
+        let ids = search_result
             .result
             .iter()
             .filter_map(|r| {
-                if let Some(content) = r.payload.get("content") {
-                    let content = content.as_str().unwrap().to_string();
-                    if let Some(id) = r.payload.get("id") {
-                        let id = id.as_str().unwrap().to_string();
-                        Some(MemoryData { id, content })
-                    } else {
-                        None
-                    }
+                if let Some(content) = r.payload.get("id") {
+                    let id = content.as_integer().unwrap() as u128;
+                    Some(id)
                 } else {
                     None
                 }
             })
-            .collect::<Vec<MemoryData>>();
-        Ok(res)
+            .collect::<Vec<u128>>();
+        let mut memories = Vec::with_capacity(ids.len());
+        for id in ids {
+            let memory = self.get_memory(id)?;
+            memories.push(memory);
+        }
+
+        Ok(memories)
     }
 
     pub fn insert_tweet_id(&self, tweet_id: &str) -> Result<()> {
@@ -146,34 +152,47 @@ impl Database {
             .map_err(|e| anyhow!("{e:?}"))
     }
 
-    pub fn insert_sent_tweet(&self, created_at: u128, tweet: SentTweet) -> Result<()> {
-        let sent_tweed_cf = self
+    fn insert_memory_data(&self, data: MemoryData) -> Result<()> {
+        let cf = self
             .kv_db
-            .cf_handle(SENT_TWEETS)
-            .expect("failed to get sent tweets cf handle");
-        let tweet_bytes = bincode::serialize(&tweet)?;
+            .cf_handle(MEMORY_DATA)
+            .expect("failed to get memory data cf handle");
+        let data_bytes = bincode::serialize(&data)?;
         self.kv_db
-            .put_cf(&sent_tweed_cf, created_at.to_be_bytes(), &tweet_bytes)
+            .put_cf(&cf, data.id.to_le_bytes(), &data_bytes)
             .map_err(|e| anyhow!("{e:?}"))
     }
 
-    pub fn get_sent_tweets(&self, max_num: usize) -> Result<Vec<SentTweet>> {
+    fn get_memory(&self, id: u128) -> Result<MemoryData> {
+        let cf = self
+            .kv_db
+            .cf_handle(MEMORY_DATA)
+            .expect("failed to get memory data cf handle");
+
+        let data = self
+            .kv_db
+            .get_cf(&cf, id.to_le_bytes())?
+            .context("failed to get memory")?;
+        bincode::deserialize::<MemoryData>(&data).map_err(|e| anyhow!("{e:?}"))
+    }
+
+    pub fn get_recent_memories(&self, max_num: usize) -> Result<Vec<MemoryData>> {
         let sent_tweed_cf = self
             .kv_db
-            .cf_handle(SENT_TWEETS)
-            .expect("failed to get sent tweet cf handle");
+            .cf_handle(MEMORY_DATA)
+            .expect("failed to get sent memory data cf handle");
         let iter = self.kv_db.iterator_cf(sent_tweed_cf, IteratorMode::End);
-        let mut tweets = Vec::with_capacity(max_num);
+        let mut memories = Vec::with_capacity(max_num);
         for (_key, val) in iter.flatten() {
-            if tweets.len() >= max_num {
+            if memories.len() >= max_num {
                 break;
             }
-            if let Ok(tweet) = bincode::deserialize::<SentTweet>(&val) {
-                tweets.push(tweet);
+            if let Ok(memory) = bincode::deserialize::<MemoryData>(&val) {
+                memories.push(memory);
             }
         }
 
-        Ok(tweets)
+        Ok(memories)
     }
 }
 

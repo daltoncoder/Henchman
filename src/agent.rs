@@ -1,10 +1,14 @@
 use ethsign::SecretKey;
-use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::UNIX_EPOCH;
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     config::Config,
-    db::{types::Embedding, Database},
+    db::{
+        types::{Embedding, Memory, MemoryData},
+        Database,
+    },
     hyperbolic::HyperbolicClient,
     openai::OpenAIClient,
     prompts::Prompts,
@@ -83,11 +87,16 @@ impl Agent {
     }
 
     pub async fn run(&self) -> Result<()> {
-        let max_num_mentions = 50; // TODO: make config
-        let max_timeline_tweets = 50; // TODO: make config
-        let num_long_term_memories = 5; // TODO: make config
-                                        // Step 1: retrieve own recent posts
-        let recent_tweets = self.database.get_sent_tweets(20)?;
+        let max_num_mentions = 50;
+        let max_timeline_tweets = 50;
+        let num_long_term_memories = 5;
+        let min_storing_memory_score = 2;
+        let min_posting_score = 3;
+        let num_recent_posts = 20;
+
+        // Step 1: retrieve own recent posts
+        let recent_tweets = self.database.get_recent_memories(num_recent_posts)?;
+
         // Step 2: Fetch External Context(Notifications, timelines, and reply trees)
         // Step 2.1: filter all of the notifications for ones that haven't been seen before
         // Step 2.2: add to database every tweet id you have seen
@@ -99,10 +108,12 @@ impl Agent {
             .iter()
             .for_each(|t| context.push(t.to_string()));
         mentions.iter().for_each(|t| context.push(t.to_string()));
+
         // Step 2.3: Check wallet address in posts and decide if we should take onchain action
         // Step 2.4: Decide to follow any users
         // Step 3: Generate Short-term memory
         let short_term_memory = self.generate_short_term_memory(context.clone()).await?;
+
         // Step 4: Create embedding for short term memory
         // Step 5: Retrieve relevent long-term memories
         let long_term_memories = self
@@ -131,11 +142,52 @@ impl Agent {
             return Err(anyhow!("Failed to generate tweet"));
         }
         let tweet = tweet_res.choices.swap_remove(0).message.content;
-        // Step 7: Score siginigicance of the new post
-        // Step 8: Store the new post in long term memory if significant enough
-        // Step 9: Submit Post
 
-        todo!()
+        // Step 7: Score siginigicance of the new post
+        let mut tweet_score = self
+            .hyperbolic_client
+            .generate_text(
+                &tweet,
+                "Respond only with a score from 1 to 10 for the given memory",
+            )
+            .await?;
+        if tweet_score.choices.is_empty() {
+            return Err(anyhow!("Failed to generate significance score for tweet"));
+        }
+        let tweet_score = tweet_score.choices.swap_remove(0).message.content;
+        let tweet_score = tweet_score.parse::<u16>()?;
+
+        // Step 8: Store the new post in long term memory if significant enough
+        if tweet_score >= min_storing_memory_score {
+            let mut embd_res = self.openai_client.get_text_embedding(&tweet).await?;
+            if embd_res.data.is_empty() {
+                return Err(anyhow!("Embedding data missing from OpenAI API response"));
+            }
+            let start = SystemTime::now();
+            let since_the_epoch = start.duration_since(UNIX_EPOCH)?;
+            let tweet_id = since_the_epoch.as_millis();
+            let tweet_embd = Embedding::new(tweet_id, embd_res.data.swap_remove(0).embedding);
+            self.database
+                .upsert_memories(
+                    LONG_TERM_MEMORY,
+                    vec![Memory {
+                        data: MemoryData {
+                            id: tweet_id,
+                            score: tweet_score,
+                            content: tweet.clone(),
+                        },
+                        embedding: tweet_embd,
+                    }],
+                )
+                .await?;
+        }
+
+        // Step 9: Submit Post
+        if tweet_score >= min_posting_score {
+            self.twitter_client.post_tweet(&tweet).await?;
+        }
+
+        Ok(())
     }
 
     /// Retrieves the latest tweets from the timeline.
@@ -245,7 +297,8 @@ impl Agent {
         if embd_res.data.is_empty() {
             return Err(anyhow!("Embedding data missing from OpenAI API response"));
         }
-        let short_term_mem_embd = Embedding::new(embd_res.data.swap_remove(0).embedding);
+        // 0 serves as a dummy id
+        let short_term_mem_embd = Embedding::new(0, embd_res.data.swap_remove(0).embedding);
         let long_term_memories = self
             .database
             .get_k_most_similar_memories(

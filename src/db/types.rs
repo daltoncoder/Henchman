@@ -1,17 +1,29 @@
+use std::fmt::Display;
+
+use serde::{Deserialize, Serialize};
+
 #[derive(Debug)]
 pub struct Memory {
-    pub data: MemoryData,
     pub embedding: Embedding,
+    pub data: MemoryData,
 }
 
 #[derive(Debug)]
 pub struct Embedding {
+    pub id: u128,
     pub data: Vec<f32>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct MemoryData {
+    pub id: u128,
+    pub score: u16,
+    pub content: String,
+}
+
 impl Embedding {
-    pub fn new(data: Vec<f32>) -> Self {
-        Self { data }
+    pub fn new(id: u128, data: Vec<f32>) -> Self {
+        Self { id, data }
     }
 
     pub fn cosine_similarity(&self, rhs: &Embedding) -> f32 {
@@ -34,8 +46,8 @@ impl Embedding {
     }
 }
 
-#[derive(Debug)]
-pub struct MemoryData {
-    pub id: String,
-    pub content: String,
+impl Display for MemoryData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "A tweet from us: {}", self.content)
+    }
 }

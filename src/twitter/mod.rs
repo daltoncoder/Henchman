@@ -161,7 +161,7 @@ impl TwitterClient {
     }
 
     /// Posts a tweet and returns the tweet data on success.
-    pub async fn post_tweet(&self, content: String) -> Result<SentTweet> {
+    pub async fn post_tweet(&self, content: &str) -> Result<SentTweet> {
         let url = format!("{}/tweets", self.base_url);
 
         let json = serde_json::json!({
@@ -360,7 +360,7 @@ mod tests {
             x_access_token_secret,
         );
 
-        let tweet = client.post_tweet("mic check 3".to_string()).await.unwrap();
+        let tweet = client.post_tweet("mic check 3").await.unwrap();
         println!("{tweet:?}");
     }
 

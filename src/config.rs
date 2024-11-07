@@ -21,6 +21,8 @@ pub struct Config {
     pub open_ai_api_url: String,
     pub x_username: String,
     pub kv_db_path: String,
+    pub min_storing_memory_score: u16,
+    pub min_posting_score: u16,
     pub scroll_sleep: Option<(u64, u64)>,
     pub scroll_duration: Option<(u64, u64)>,
     pub run_sleep: Option<(u64, u64)>,

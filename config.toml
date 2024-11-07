@@ -13,3 +13,5 @@ hyperbolic_api_url=""
 open_ai_api_url="https://api.openai.com/v1"
 x_username=""
 kv_db_path=""
+min_storing_memory_score=2
+min_posting_score=3
