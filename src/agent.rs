@@ -92,6 +92,7 @@ impl Agent {
 
     pub async fn run(&self) -> Result<()> {
         // Step 1: retrieve own recent posts
+        println!("Reading recent posts...");
         let recent_tweets = self
             .database
             .get_recent_memories(self.config.num_recent_posts)?;
@@ -99,9 +100,11 @@ impl Agent {
         // Step 2: Fetch External Context(Notifications, timelines, and reply trees)
         // Step 2.1: filter all of the notifications for ones that haven't been seen before
         // Step 2.2: add to database every tweet id you have seen
+        println!("Get timeline tweets...");
         let timeline_tweets = self
             .get_timeline_tweets(Some(self.config.max_timeline_tweets))
             .await?;
+        println!("Get mentions...");
         let mentions = self
             .get_mentions(Some(self.config.max_num_mentions))
             .await?;
@@ -119,6 +122,9 @@ impl Agent {
 
         // Step 3: Generate Short-term memory
         let short_term_memory = self.generate_short_term_memory(context.clone()).await?;
+        println!("Short term memory:");
+        println!("{short_term_memory}");
+        println!();
 
         // Step 4: Create embedding for short term memory
         // Step 5: Retrieve relevent long-term memories
@@ -148,6 +154,9 @@ impl Agent {
             return Err(anyhow!("Failed to generate tweet"));
         }
         let tweet = tweet_res.choices.swap_remove(0).message.content;
+        println!("Proposed tweet:");
+        println!("{tweet}");
+        println!();
 
         // Step 7: Score siginigicance of the new post
         let mut tweet_score = self
@@ -163,8 +172,13 @@ impl Agent {
         let tweet_score = tweet_score.choices.swap_remove(0).message.content;
         let tweet_score = tweet_score.parse::<u16>()?;
 
+        println!("Tweet score:");
+        println!("{tweet_score}");
+        println!();
+
         // Step 8: Store the new post in long term memory if significant enough
         if tweet_score >= self.config.min_storing_memory_score {
+            println!("Storing tweet in memory");
             let mut embd_res = self.openai_client.get_text_embedding(&tweet).await?;
             if embd_res.data.is_empty() {
                 return Err(anyhow!("Embedding data missing from OpenAI API response"));
@@ -190,6 +204,7 @@ impl Agent {
 
         // Step 9: Submit Post
         if tweet_score >= self.config.min_posting_score {
+            println!("Posting tweet");
             self.twitter_client.post_tweet(&tweet).await?;
         }
 
@@ -344,6 +359,7 @@ impl Agent {
         let usernames = username_to_id.keys().cloned().collect::<Vec<String>>();
         let follow_prompt = self.prompts.get_follow_prompt(usernames);
 
+        println!("Deciding which user to follow...");
         let mut res = self
             .hyperbolic_client
             .generate_text(
@@ -358,6 +374,7 @@ impl Agent {
         let Some(target_user_id) = username_to_id.get(&username) else {
             return Err(anyhow!("Invalid username selected"));
         };
+        println!("Following user: {username}");
 
         self.twitter_client
             .follow_user(&self.user_id, target_user_id)
