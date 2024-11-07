@@ -30,6 +30,7 @@ pub struct Config {
     pub scroll_sleep: Option<(u64, u64)>,
     pub scroll_duration: Option<(u64, u64)>,
     pub run_sleep: Option<(u64, u64)>,
+    pub release_credentials: u64,
 }
 
 impl Config {

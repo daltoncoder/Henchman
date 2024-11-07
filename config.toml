@@ -19,3 +19,4 @@ max_num_mentions = 50
 max_timeline_tweets = 50
 num_long_term_memories = 5
 num_recent_posts = 5
+release_credentials = 604800

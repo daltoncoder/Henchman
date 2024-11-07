@@ -68,11 +68,6 @@ impl Pipeline {
             }
         }
     }
-
-    /// Get time a the agent AI agent should sleep before it starts "Scrolling twitter again"
-    fn get_sleep_time(&self) -> Duration {
-        todo!()
-    }
 }
 
 struct PipelineConfig {

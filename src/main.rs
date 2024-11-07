@@ -3,6 +3,7 @@ use std::error::Error;
 use config::Config;
 use pipeline::Pipeline;
 use prompts::Prompts;
+use release_credentials::timelock;
 
 pub mod agent;
 pub mod config;
@@ -12,14 +13,15 @@ pub mod hyperbolic;
 pub mod openai;
 pub mod pipeline;
 pub mod prompts;
+pub mod release_credentials;
 pub mod twitter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     let prompts = Prompts::load("./prompts.toml".into());
     let config = Config::load("./config.toml".into());
+    // todo, encumber account, and starte the realease credentials script
     let mut pipeline = Pipeline::new(&config, prompts).await;
     pipeline.run().await;
-
     Ok(())
 }
