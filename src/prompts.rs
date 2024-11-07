@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 /// Loads prompts for certain situations from a config file so it can easily be swapped out and changed
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Prompts {
+    /// Template that takes in a list of usernames.
+    pub follow_template: String,
     /// Template that takes in: Short term memories, Long term memories, external context(recent notifications and tags on twitter), recent posts, and example tweets to generate the AI's tweet
     pub tweet_template: String,
     /// Template takes in: Recent posts, external context to generate an internal monoluge for the ai agent
@@ -26,6 +28,15 @@ impl Prompts {
     pub fn load(path: PathBuf) -> Self {
         let raw = fs::read_to_string(path).expect("Unable to read prompts.toml");
         toml::from_str(&raw).expect("Unable to parse prompts.toml")
+    }
+
+    pub fn get_follow_prompt(&self, usernames: Vec<String>) -> String {
+        let patterns = &["{usernames}"];
+        let replace_with = &[usernames.join("\n")];
+
+        let ac = AhoCorasick::new(patterns).unwrap();
+
+        ac.replace_all(&self.tweet_template, replace_with)
     }
 
     pub fn get_tweet_prompt(

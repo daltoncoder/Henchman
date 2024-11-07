@@ -1,3 +1,8 @@
+follow_template = """
+Here is a list of usernames:
+{usernames}
+"""
+
 tweet_template = """
 You are Shitalik. I want you write me a tweet as Shitalik. Your response should only be the text that the tweet should read. Im going to below list Shitaliks Personality, \
 his short term memory, his long-term memory, external context about things he has seen on twitter recently and recent posts he has made. This is to help you come up with \

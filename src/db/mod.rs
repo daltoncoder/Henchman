@@ -11,14 +11,13 @@ use qdrant_client::{
 use rocksdb::{IteratorMode, Options, DB};
 use uuid::Uuid;
 
-use crate::twitter::api_types::SentTweet;
-
 use self::types::{Embedding, Memory, MemoryData};
 
 pub mod types;
 
 const TWEET_IDS: &str = "tweet_ids";
 const MEMORY_DATA: &str = "memory-data";
+const USER_ID: &str = "user-id";
 
 pub struct Database {
     vec_db_client: Qdrant,
@@ -33,7 +32,7 @@ impl Database {
         db_options.create_if_missing(true);
         db_options.create_missing_column_families(true);
 
-        let cf = vec![TWEET_IDS, MEMORY_DATA];
+        let cf = vec![TWEET_IDS, MEMORY_DATA, USER_ID];
         let kv_db = DB::open_cf(&db_options, kv_db_path, cf)?;
 
         Ok(Self {
@@ -138,6 +137,27 @@ impl Database {
             .expect("failed to get tweet id cf handle");
         self.kv_db
             .put_cf(&tweed_id_cf, tweet_id.as_bytes(), b"0")
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    pub fn user_id_exists(&self, user_id: &str) -> Result<bool> {
+        let user_id_cf = self
+            .kv_db
+            .cf_handle(USER_ID)
+            .expect("failed to get user id cf handle");
+        self.kv_db
+            .get_cf(&user_id_cf, user_id.as_bytes())
+            .map(|v| v.is_some())
+            .map_err(|e| anyhow!("{e:?}"))
+    }
+
+    pub fn insert_user_id(&self, user_id: &str) -> Result<()> {
+        let user_id_cf = self
+            .kv_db
+            .cf_handle(USER_ID)
+            .expect("failed to get user id cf handle");
+        self.kv_db
+            .put_cf(&user_id_cf, user_id.as_bytes(), b"0")
             .map_err(|e| anyhow!("{e:?}"))
     }
 

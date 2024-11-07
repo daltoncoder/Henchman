@@ -110,7 +110,10 @@ impl Agent {
         mentions.iter().for_each(|t| context.push(t.to_string()));
 
         // Step 2.3: Check wallet address in posts and decide if we should take onchain action
+
         // Step 2.4: Decide to follow any users
+        self.follow_users(&timeline_tweets, &mentions).await?;
+
         // Step 3: Generate Short-term memory
         let short_term_memory = self.generate_short_term_memory(context.clone()).await?;
 
@@ -311,6 +314,53 @@ impl Agent {
             .map(|m| m.content)
             .collect();
         Ok(long_term_memories)
+    }
+
+    pub async fn follow_users(
+        &self,
+        timeline_tweets: &[TimelineTweet],
+        mentions: &[Tweet],
+    ) -> Result<()> {
+        let mut username_to_id = HashMap::new();
+        for tweet in timeline_tweets {
+            if let Some(username) = &tweet.username {
+                // Check if we are following this user already
+                if !self.database.user_id_exists(&tweet.author_id)? {
+                    username_to_id.insert(username.clone(), &tweet.author_id);
+                }
+            }
+        }
+        for tweet in mentions {
+            if let Some(username) = &tweet.username {
+                // Check if we are following this user already
+                if !self.database.user_id_exists(&tweet.author_id)? {
+                    username_to_id.insert(username.clone(), &tweet.author_id);
+                }
+            }
+        }
+        let usernames = username_to_id.keys().cloned().collect::<Vec<String>>();
+        let follow_prompt = self.prompts.get_follow_prompt(usernames);
+
+        let mut res = self
+            .hyperbolic_client
+            .generate_text(
+                &follow_prompt,
+                "Respond with one username from the list. The response should only contain the username.",
+            )
+            .await?;
+        if res.choices.is_empty() {
+            return Err(anyhow!("Failed to generate username to follow"));
+        }
+        let username = res.choices.swap_remove(0).message.content;
+        let Some(target_user_id) = username_to_id.get(&username) else {
+            return Err(anyhow!("Invalid username selected"));
+        };
+
+        self.twitter_client
+            .follow_user(&self.user_id, target_user_id)
+            .await?;
+
+        Ok(())
     }
 
     pub async fn respond_to_mentions(&self) -> Result<()> {
