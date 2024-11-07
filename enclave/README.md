@@ -52,3 +52,24 @@ This will include the current input toml files:
 cd enclave/gramine/trusted
 ./update-trusted.sh
 ```
+
+## Start the Enclave
+``` shell
+cd enclave
+scripts/resume-server.sh
+```
+
+## Restart the Enclave
+If the binary or trusted files have been changed, the enclave should be re-deployed. The MRENCLAVE will change.
+
+``` shell
+cd enclave
+scripts/clear-server.sh
+```
+
+## Stop the Enclave
+There may be multiple enclaves deployed. Choose the right PID.
+``` shell
+ps aux | grep gramine
+kill -9 <PID>
+```
