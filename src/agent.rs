@@ -4,23 +4,27 @@ use std::path::PathBuf;
 
 use crate::{
     config::Config,
-    db::Database,
+    db::{types::Embedding, Database},
     hyperbolic::HyperbolicClient,
+    openai::OpenAIClient,
     prompts::Prompts,
     twitter::{
         api_types::{TimelineTweet, Tweet},
         TwitterClient,
     },
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 /// The AI agent that tweets
 /// Should contain short term memory, long term memory, external context
+
+const LONG_TERM_MEMORY: &str = "long-term-memory";
 
 pub struct Agent {
     prompts: Prompts,
     twitter_client: TwitterClient,
     hyperbolic_client: HyperbolicClient,
+    openai_client: OpenAIClient,
     database: Database,
     user_id: String,
     eth_private_key: SecretKey,
@@ -61,6 +65,7 @@ impl Agent {
             config.hyperbolic_api_key.clone(),
             config.hyperbolic_api_url.clone(),
         );
+        let openai_client = OpenAIClient::new(config.open_ai_api_key, config.open_ai_api_url);
 
         // Create/seed database of long term memories
 
@@ -70,24 +75,62 @@ impl Agent {
             prompts: Prompts::default(),
             twitter_client,
             hyperbolic_client,
+            openai_client,
             database,
             user_id,
             eth_private_key,
         })
     }
 
-    pub async fn run(&self) {
-        // Step 1: retrieve own recent posts
-        let recent_tweets = self.database.get_sent_tweets(20).unwrap();
+    pub async fn run(&self) -> Result<()> {
+        let max_num_mentions = 50; // TODO: make config
+        let max_timeline_tweets = 50; // TODO: make config
+        let num_long_term_memories = 5; // TODO: make config
+                                        // Step 1: retrieve own recent posts
+        let recent_tweets = self.database.get_sent_tweets(20)?;
         // Step 2: Fetch External Context(Notifications, timelines, and reply trees)
         // Step 2.1: filter all of the notifications for ones that haven't been seen before
         // Step 2.2: add to database every tweet id you have seen
+        let timeline_tweets = self.get_timeline_tweets(Some(max_timeline_tweets)).await?;
+        let mentions = self.get_mentions(Some(max_num_mentions)).await?;
+
+        let mut context = Vec::with_capacity(timeline_tweets.len() + mentions.len());
+        timeline_tweets
+            .iter()
+            .for_each(|t| context.push(t.to_string()));
+        mentions.iter().for_each(|t| context.push(t.to_string()));
         // Step 2.3: Check wallet address in posts and decide if we should take onchain action
         // Step 2.4: Decide to follow any users
         // Step 3: Generate Short-term memory
+        let short_term_memory = self.generate_short_term_memory(context.clone()).await?;
         // Step 4: Create embedding for short term memory
         // Step 5: Retrieve relevent long-term memories
+        let long_term_memories = self
+            .get_long_term_memories(&short_term_memory, num_long_term_memories)
+            .await?;
+
         // Step 6: Generate new post or reply
+        let recent_posts = recent_tweets
+            .iter()
+            .map(|t| t.to_string())
+            .collect::<Vec<String>>();
+        let tweet_prompt = self.prompts.get_tweet_prompt(
+            short_term_memory,
+            long_term_memories,
+            recent_posts,
+            context,
+        );
+        let mut tweet_res = self
+            .hyperbolic_client
+            .generate_text(
+                &tweet_prompt,
+                "Write a tweet that is less than 240 characters based on the context",
+            )
+            .await?;
+        if tweet_res.choices.is_empty() {
+            return Err(anyhow!("Failed to generate tweet"));
+        }
+        let tweet = tweet_res.choices.swap_remove(0).message.content;
         // Step 7: Score siginigicance of the new post
         // Step 8: Store the new post in long term memory if significant enough
         // Step 9: Submit Post
@@ -95,11 +138,16 @@ impl Agent {
         todo!()
     }
 
-    pub async fn get_timeline_tweets(&self) -> Result<Vec<TimelineTweet>> {
-        let max_timeline_tweets = 50; // TODO: make config
+    /// Retrieves the latest tweets from the timeline.
+    /// Filters out tweets that have already been seen.
+    /// Marks retrieved tweets as seen.
+    pub async fn get_timeline_tweets(
+        &self,
+        max_timeline_tweets: Option<u16>,
+    ) -> Result<Vec<TimelineTweet>> {
         let mut tweets = self
             .twitter_client
-            .get_timeline(&self.user_id, Some(max_timeline_tweets))
+            .get_timeline(&self.user_id, max_timeline_tweets)
             .await?;
 
         let usernames: HashMap<&String, &String> = tweets
@@ -110,6 +158,7 @@ impl Agent {
             .collect();
 
         for tweet in tweets.data.iter_mut() {
+            self.database.insert_tweet_id(&tweet.id)?;
             if let Some(username) = usernames.get(&tweet.author_id) {
                 tweet.username = Some(String::from(*username));
             }
@@ -130,11 +179,13 @@ impl Agent {
         Ok(tweets)
     }
 
-    pub async fn get_mentions(&self) -> Result<Vec<Tweet>> {
-        let max_num_mentions = 50; // TODO: make config
+    /// Retrieves the latest mentions.
+    /// Filters out tweets that have already been seen.
+    /// Marks retrieved tweets as seen.
+    pub async fn get_mentions(&self, max_num_mentions: Option<u16>) -> Result<Vec<Tweet>> {
         let mut mentions = self
             .twitter_client
-            .get_mentions(&self.user_id, Some(max_num_mentions))
+            .get_mentions(&self.user_id, max_num_mentions)
             .await?;
 
         let usernames: HashMap<&String, &String> = mentions
@@ -145,6 +196,7 @@ impl Agent {
             .collect();
 
         for tweet in mentions.data.iter_mut() {
+            self.database.insert_tweet_id(&tweet.id)?;
             if let Some(username) = usernames.get(&tweet.author_id) {
                 tweet.username = Some(String::from(*username));
             }
@@ -163,6 +215,49 @@ impl Agent {
             .collect();
 
         Ok(tweets)
+    }
+
+    pub async fn generate_short_term_memory(&self, context: Vec<String>) -> Result<String> {
+        let prompt_context = self.prompts.get_short_term_memory_prompt(context);
+        // TODO: try multiple times?
+        let mut res = self
+            .hyperbolic_client
+            .generate_text(
+                &prompt_context,
+                "Respond only with your internal monologue based on the given context.",
+            )
+            .await?;
+        if res.choices.is_empty() {
+            return Err(anyhow!("Failed to generate short term memory"));
+        }
+        Ok(res.choices.swap_remove(0).message.content)
+    }
+
+    pub async fn get_long_term_memories(
+        &self,
+        short_term_memory: &str,
+        num_long_term_memories: u64,
+    ) -> Result<Vec<String>> {
+        let mut embd_res = self
+            .openai_client
+            .get_text_embedding(short_term_memory)
+            .await?;
+        if embd_res.data.is_empty() {
+            return Err(anyhow!("Embedding data missing from OpenAI API response"));
+        }
+        let short_term_mem_embd = Embedding::new(embd_res.data.swap_remove(0).embedding);
+        let long_term_memories = self
+            .database
+            .get_k_most_similar_memories(
+                LONG_TERM_MEMORY,
+                short_term_mem_embd,
+                num_long_term_memories,
+            )
+            .await?
+            .into_iter()
+            .map(|m| m.content)
+            .collect();
+        Ok(long_term_memories)
     }
 
     pub async fn respond_to_mentions(&self) -> Result<()> {

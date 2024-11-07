@@ -18,6 +18,7 @@ pub struct Config {
     pub eth_rpc_url: String,
     pub x_api_url: String,
     pub hyperbolic_api_url: String,
+    pub open_ai_api_url: String,
     pub x_username: String,
     pub kv_db_path: String,
     pub scroll_sleep: Option<(u64, u64)>,

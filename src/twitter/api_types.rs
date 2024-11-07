@@ -89,11 +89,7 @@ pub struct TimelineMeta {
 impl Display for Tweet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(username) = &self.username {
-            write!(
-                f,
-                "New tweet on my timeline from @{username}: {}",
-                self.text
-            )
+            write!(f, "A tweet on my timeline from @{username}: {}", self.text)
         } else {
             write!(f, "New tweet on my timeline: {}", self.text)
         }
@@ -103,13 +99,15 @@ impl Display for Tweet {
 impl Display for TimelineTweet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(username) = &self.username {
-            write!(
-                f,
-                "New tweet on my timeline from @{username}: {}",
-                self.text
-            )
+            write!(f, "A tweet on my timeline from @{username}: {}", self.text)
         } else {
             write!(f, "New tweet on my timeline: {}", self.text)
         }
+    }
+}
+
+impl Display for SentTweet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "A tweet from us: {}", self.text)
     }
 }
