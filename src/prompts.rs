@@ -67,7 +67,7 @@ impl Prompts {
     }
 
     pub fn get_short_term_memory_prompt(&self, external_context: Vec<String>) -> String {
-        let ac = AhoCorasick::new(&["{external_context}"]).unwrap();
+        let ac = AhoCorasick::new(["{external_context}"]).unwrap();
         ac.replace_all(
             &self.short_term_memory_template,
             &[external_context.join("\n")],
@@ -75,7 +75,7 @@ impl Prompts {
     }
 
     pub fn get_significance_prompt(&self, memory: &str) -> String {
-        let ac = AhoCorasick::new(&["{memory}"]).unwrap();
+        let ac = AhoCorasick::new(["{memory}"]).unwrap();
 
         ac.replace_all(&self.significance_score_template, &[memory])
     }
@@ -95,7 +95,7 @@ impl Prompts {
     }
 
     pub fn get_formatter_prompt(&self, original_prompt: &str) -> String {
-        let ac = AhoCorasick::new(&["{prompt}"]).unwrap();
+        let ac = AhoCorasick::new(["{prompt}"]).unwrap();
 
         ac.replace_all(&self.formatter_template, &[original_prompt])
     }

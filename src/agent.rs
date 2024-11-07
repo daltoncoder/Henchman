@@ -36,7 +36,7 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub async fn new(config: Config, eth_private_key: SecretKey) -> Result<Self> {
+    pub async fn new(config: Config, eth_private_key: SecretKey, prompts: Prompts) -> Result<Self> {
         let agent_config = AgentConfig::from(&config);
 
         let Config {
@@ -79,7 +79,7 @@ impl Agent {
         // Do initial run
 
         Ok(Self {
-            prompts: Prompts::default(),
+            prompts,
             twitter_client,
             hyperbolic_client,
             openai_client,

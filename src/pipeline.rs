@@ -9,7 +9,7 @@ use rand::Rng;
 use std::time::Duration;
 use tokio::select;
 
-use crate::{agent::Agent, config::Config};
+use crate::{agent::Agent, config::Config, prompts::Prompts};
 
 pub struct Pipeline {
     /// The Ai Agent
@@ -18,15 +18,15 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub async fn new(config: &Config) -> Self {
+    pub async fn new(config: &Config, prompts: Prompts) -> Self {
         let pipeline_config: PipelineConfig = config.into();
-        let agent: Agent = Agent::new(config.clone(), generate_eth_private_key())
+        let agent: Agent = Agent::new(config.clone(), generate_eth_private_key(), prompts)
             .await
             .expect("Failed to create Agent");
 
         Self {
             agent,
-            config: config.into(),
+            config: pipeline_config,
         }
     }
 
@@ -60,7 +60,9 @@ impl Pipeline {
                     }
 
                     _ = run_sleep_fut => {
-                        self.agent.run().await;
+                        if let Err(e) = self.agent.run().await {
+                            println!("Error while running error: {e:?}");
+                        };
                     }
                 }
             }
