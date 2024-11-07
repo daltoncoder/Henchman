@@ -219,31 +219,35 @@ mod tests {
 
         let mem1 = Memory {
             data: MemoryData {
-                id: String::from("1"),
+                id: 0,
+                score: 1,
                 content: String::from("hello"),
             },
-            embedding: Embedding::new(vec![1.2, 2.2, 3.2]),
+            embedding: Embedding::new(0, vec![1.2, 2.2, 3.2]),
         };
         let mem2 = Memory {
             data: MemoryData {
-                id: String::from("2"),
+                id: 1,
+                score: 2,
                 content: String::from("goodbye"),
             },
-            embedding: Embedding::new(vec![1.1, 2.1, 3.1]),
+            embedding: Embedding::new(1, vec![1.1, 2.1, 3.1]),
         };
         let mem3 = Memory {
             data: MemoryData {
-                id: String::from("3"),
+                id: 2,
+                score: 3,
                 content: String::from("foo"),
             },
-            embedding: Embedding::new(vec![1.3, 2.3, 3.3]),
+            embedding: Embedding::new(2, vec![1.3, 2.3, 3.3]),
         };
         let mem4 = Memory {
             data: MemoryData {
-                id: String::from("3"),
+                id: 3,
+                score: 4,
                 content: String::from("bar"),
             },
-            embedding: Embedding::new(vec![1.4, 2.4, 3.4]),
+            embedding: Embedding::new(3, vec![1.4, 2.4, 3.4]),
         };
 
         let memories = vec![mem1, mem2, mem3, mem4];
@@ -251,7 +255,7 @@ mod tests {
         db.upsert_memories(table, memories).await.unwrap();
 
         let res = db
-            .get_k_most_similar_memories(table, Embedding::new(vec![1., 2., 3.]), 2)
+            .get_k_most_similar_memories(table, Embedding::new(0, vec![1., 2., 3.]), 2)
             .await
             .unwrap();
 
@@ -266,45 +270,33 @@ mod tests {
         let db =
             Database::new("http://localhost:6334", PathBuf::from("/tmp/rocksdb_test")).unwrap();
 
-        db.insert_sent_tweet(
-            2,
-            SentTweet {
-                id: "2".to_string(),
-                text: "".to_string(),
-                edit_history_tweet_ids: vec![],
-            },
-        )
+        db.insert_memory_data(MemoryData {
+            id: 1,
+            score: 1,
+            content: "y".to_string(),
+        })
         .unwrap();
-        db.insert_sent_tweet(
-            3,
-            SentTweet {
-                id: "3".to_string(),
-                text: "".to_string(),
-                edit_history_tweet_ids: vec![],
-            },
-        )
+        db.insert_memory_data(MemoryData {
+            id: 2,
+            score: 1,
+            content: "x".to_string(),
+        })
         .unwrap();
-        db.insert_sent_tweet(
-            4,
-            SentTweet {
-                id: "4".to_string(),
-                text: "".to_string(),
-                edit_history_tweet_ids: vec![],
-            },
-        )
+        db.insert_memory_data(MemoryData {
+            id: 3,
+            score: 3,
+            content: "foo".to_string(),
+        })
         .unwrap();
-        db.insert_sent_tweet(
-            1,
-            SentTweet {
-                id: "1".to_string(),
-                text: "".to_string(),
-                edit_history_tweet_ids: vec![],
-            },
-        )
+        db.insert_memory_data(MemoryData {
+            id: 4,
+            score: 1,
+            content: "bar".to_string(),
+        })
         .unwrap();
 
-        let tweets = db.get_sent_tweets(2).unwrap();
-        assert_eq!(tweets[0].id, "4");
-        assert_eq!(tweets[1].id, "3");
+        let tweets = db.get_recent_memories(2).unwrap();
+        assert_eq!(tweets[0].content, "bar");
+        assert_eq!(tweets[1].content, "foo");
     }
 }

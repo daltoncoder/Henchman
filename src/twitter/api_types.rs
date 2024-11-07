@@ -86,6 +86,12 @@ pub struct TimelineMeta {
     pub oldest_id: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct FollowData {
+    pub following: bool,
+    pub pending_follow: bool,
+}
+
 impl Display for Tweet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if let Some(username) = &self.username {

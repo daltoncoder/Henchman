@@ -8,7 +8,7 @@ use api_types::MentionsResponse;
 
 use crate::twitter::api_types::ApiResponse;
 
-use self::api_types::{SentTweet, TimelineResponse, Tweet, TweetsResponse, User};
+use self::api_types::{FollowData, SentTweet, TimelineResponse, Tweet, TweetsResponse, User};
 
 pub struct TwitterClient {
     client: Client<Signer<'static, Secrets<'static>, DefaultSM>>,
@@ -232,6 +232,27 @@ impl TwitterClient {
             .map_err(|e| anyhow!("{e:?}"))
             .map(|res| res.data)
     }
+
+    /// Follow the user with id `user_id`.
+    pub async fn follow_user(&self, user_id: &str, target_user_id: &str) -> Result<FollowData> {
+        let url = format!("{}/users/{user_id}/following", self.base_url);
+
+        let json = serde_json::json!({
+            "target_user_id": target_user_id,
+        });
+
+        self.client
+            .post(url)
+            .header("Content-Type", "application/json")
+            .body(json.to_string())
+            .send()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?
+            .json::<ApiResponse<FollowData>>()
+            .await
+            .map_err(|e| anyhow!("{e:?}"))
+            .map(|res| res.data)
+    }
 }
 
 #[cfg(test)]
@@ -425,5 +446,26 @@ mod tests {
             .await
             .unwrap();
         println!("{user:?}");
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_follow_user() {
+        let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+            get_secrets();
+        let base_url = "https://api.twitter.com/2".to_string();
+        let client = TwitterClient::new(
+            base_url,
+            x_consumer_key,
+            x_consumer_secret,
+            x_access_token,
+            x_access_token_secret,
+        );
+
+        let res = client
+            .follow_user("1852012860596981761", "1851820330513473536")
+            .await
+            .unwrap();
+        println!("{res:?}");
     }
 }
