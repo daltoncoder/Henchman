@@ -32,10 +32,13 @@ pub struct Agent {
     database: Database,
     user_id: String,
     eth_private_key: SecretKey,
+    config: AgentConfig,
 }
 
 impl Agent {
     pub async fn new(config: Config, eth_private_key: SecretKey) -> Result<Self> {
+        let agent_config = AgentConfig::from(&config);
+
         let Config {
             x_api_url,
             x_consumer_key,
@@ -83,25 +86,25 @@ impl Agent {
             database,
             user_id,
             eth_private_key,
+            config: agent_config,
         })
     }
 
     pub async fn run(&self) -> Result<()> {
-        let max_num_mentions = 50;
-        let max_timeline_tweets = 50;
-        let num_long_term_memories = 5;
-        let min_storing_memory_score = 2;
-        let min_posting_score = 3;
-        let num_recent_posts = 20;
-
         // Step 1: retrieve own recent posts
-        let recent_tweets = self.database.get_recent_memories(num_recent_posts)?;
+        let recent_tweets = self
+            .database
+            .get_recent_memories(self.config.num_recent_posts)?;
 
         // Step 2: Fetch External Context(Notifications, timelines, and reply trees)
         // Step 2.1: filter all of the notifications for ones that haven't been seen before
         // Step 2.2: add to database every tweet id you have seen
-        let timeline_tweets = self.get_timeline_tweets(Some(max_timeline_tweets)).await?;
-        let mentions = self.get_mentions(Some(max_num_mentions)).await?;
+        let timeline_tweets = self
+            .get_timeline_tweets(Some(self.config.max_timeline_tweets))
+            .await?;
+        let mentions = self
+            .get_mentions(Some(self.config.max_num_mentions))
+            .await?;
 
         let mut context = Vec::with_capacity(timeline_tweets.len() + mentions.len());
         timeline_tweets
@@ -120,7 +123,7 @@ impl Agent {
         // Step 4: Create embedding for short term memory
         // Step 5: Retrieve relevent long-term memories
         let long_term_memories = self
-            .get_long_term_memories(&short_term_memory, num_long_term_memories)
+            .get_long_term_memories(&short_term_memory, self.config.num_long_term_memories)
             .await?;
 
         // Step 6: Generate new post or reply
@@ -161,7 +164,7 @@ impl Agent {
         let tweet_score = tweet_score.parse::<u16>()?;
 
         // Step 8: Store the new post in long term memory if significant enough
-        if tweet_score >= min_storing_memory_score {
+        if tweet_score >= self.config.min_storing_memory_score {
             let mut embd_res = self.openai_client.get_text_embedding(&tweet).await?;
             if embd_res.data.is_empty() {
                 return Err(anyhow!("Embedding data missing from OpenAI API response"));
@@ -186,7 +189,7 @@ impl Agent {
         }
 
         // Step 9: Submit Post
-        if tweet_score >= min_posting_score {
+        if tweet_score >= self.config.min_posting_score {
             self.twitter_client.post_tweet(&tweet).await?;
         }
 
@@ -385,5 +388,27 @@ impl Agent {
         //}
 
         Ok(())
+    }
+}
+
+struct AgentConfig {
+    max_num_mentions: u16,
+    max_timeline_tweets: u16,
+    num_long_term_memories: u64,
+    min_storing_memory_score: u16,
+    min_posting_score: u16,
+    num_recent_posts: usize,
+}
+
+impl From<&Config> for AgentConfig {
+    fn from(value: &Config) -> Self {
+        Self {
+            max_num_mentions: value.max_num_mentions,
+            max_timeline_tweets: value.max_timeline_tweets,
+            num_long_term_memories: value.num_long_term_memories,
+            min_storing_memory_score: value.min_storing_memory_score,
+            min_posting_score: value.min_posting_score,
+            num_recent_posts: value.num_recent_posts,
+        }
     }
 }
