@@ -74,6 +74,10 @@ impl Agent {
         );
         let openai_client = OpenAIClient::new(config.open_ai_api_key, config.open_ai_api_url);
 
+        // Create collection for vector db. By default the embedding size will be 1536.
+        // See: https://platform.openai.com/docs/guides/embeddings
+        database.create_collection(LONG_TERM_MEMORY, 1536).await?;
+
         // Create/seed database of long term memories
 
         // Do initial run
@@ -118,7 +122,9 @@ impl Agent {
         // Step 2.3: Check wallet address in posts and decide if we should take onchain action
 
         // Step 2.4: Decide to follow any users
-        self.follow_users(&timeline_tweets, &mentions).await?;
+        if let Err(e) = self.follow_users(&timeline_tweets, &mentions).await {
+            println!("Failed to follow user: {e:?}");
+        }
 
         // Step 3: Generate Short-term memory
         let short_term_memory = self.generate_short_term_memory(context.clone()).await?;
@@ -372,7 +378,7 @@ impl Agent {
         }
         let username = res.choices.swap_remove(0).message.content;
         let Some(target_user_id) = username_to_id.get(&username) else {
-            return Err(anyhow!("Invalid username selected"));
+            return Err(anyhow!("Invalid username selected: {username}"));
         };
         println!("Following user: {username}");
 
