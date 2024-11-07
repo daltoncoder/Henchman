@@ -359,6 +359,8 @@ impl Agent {
         self.twitter_client
             .follow_user(&self.user_id, target_user_id)
             .await?;
+        // Mark user_id as followed
+        self.database.insert_user_id(target_user_id)?;
 
         Ok(())
     }
