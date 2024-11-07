@@ -7,6 +7,7 @@ use prompts::Prompts;
 pub mod agent;
 pub mod config;
 pub mod db;
+pub mod encumber;
 pub mod hyperbolic;
 pub mod openai;
 pub mod pipeline;
