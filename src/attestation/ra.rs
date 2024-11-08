@@ -6,15 +6,18 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use axum::response::IntoResponse;
 use base64::{engine::general_purpose, prelude::*};
-use serde::{Deserialize, Serialize};
+use reqwest::StatusCode;
 use tracing::{debug, error, info, trace};
+
+use crate::attestation::server::QuoteResponse;
 
 pub const QUOTE_REPORT_DATA_OFFSET: usize = 368;
 pub const QUOTE_REPORT_DATA_LENGTH: usize = 64;
 
 
-pub async fn ra_get_quote() -> (StatusCode, String) {
+pub async fn ra_get_quote() -> impl IntoResponse {
 	// Make a dynamic user data
 	let enclave_id = "Enclave_Public_Key";
 	let timestamp = "Timestamp_or_blocnumber";
@@ -26,28 +29,30 @@ pub async fn ra_get_quote() -> (StatusCode, String) {
 	//let enclave_account = get_keypair().await;
 	//let signature = enclave_account.sign(sign_data.as_bytes());
 
-    let signature = "Signed by enclave private key";
+    let signature = [0u8;64];
 
 	match write_user_report_data(None, &signature) {
-		Ok(_) => debug!("QUOTE : Success writing user_data to the quote."),
+		Ok(_) => debug!("QUOTE : Success writing report_data to the quote."),
 
-		Err(err) =>
-			return (
-				StatusCode::INTERNAL_SERVER_ERROR,
-				err.to_string() ,
-			),
+		Err(err) => return axum::Json(QuoteResponse { 
+			status: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
+			quote: err.to_string() })
+			 
 	};
 
 	match get_quote_content() {
 		Ok(quote_byte) => {
 			let quote_base64 = general_purpose::STANDARD.encode(quote_byte);
-			(StatusCode::OK, Json(QuoteResponse { quote_base64 }))
+			axum::Json(QuoteResponse { 
+				status: StatusCode::OK.to_string(),
+				quote: quote_base64 })
 		},
 
-		Err(err) => (
-			StatusCode::INTERNAL_SERVER_ERROR,
-			err.to_string(),
-		),
+		Err(err) => axum::Json(QuoteResponse { 
+			status: StatusCode::INTERNAL_SERVER_ERROR.to_string(),
+			quote: err.to_string(), })
+	
+	
 	}
 }
 

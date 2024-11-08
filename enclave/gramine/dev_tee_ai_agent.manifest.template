@@ -1,4 +1,4 @@
-# Fleek AI AGENT Dev manifest
+# Henchman Dev manifest
 
 loader.entrypoint = "file:{{ enclave_dir }}/trusted/gramine/libsysdb.so"
 libos.entrypoint = "{{ self_exe }}"
