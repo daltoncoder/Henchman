@@ -12,7 +12,7 @@ reqwest = { version = "0.12", features = ["json"] }
 reqwest-oauth1 = "0.3"
 anyhow = "1"
 serde_json = "1"
-qdrant-client = "1.12.1"
+qdrant-client = { version = "1.12.1", default-features = false, features = ["download_snapshots", "serde"]}
 uuid = { version = "1.11", features = ["v4"] }
 fasthash = "0.4"
 rocksdb = "0.22"
