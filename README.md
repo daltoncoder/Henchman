@@ -9,3 +9,15 @@ Designed to be customizable so you can deploy your own AI agent. And with a secu
 You can design the bot to release its credentials after a set amount of time.
 
 More info soon but mess with the prompts.toml to give your bot its personality and config.toml to set some parameters on how often it should tweet.
+
+## Development
+
+### Build docker image
+
+```sh
+# build image
+nix build .\#docker
+
+# load image archive into docker, etc ...
+docker load < ./result
+```

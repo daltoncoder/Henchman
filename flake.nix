@@ -131,6 +131,15 @@
 
         # Raw tee ai agent binary derivation
         tee-ai-agent = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
+
+        # Minimal docker image for the agent
+        docker = pkgs.dockerTools.buildImage {
+          name = "tee-ai-agent";
+          copyToRoot = [ tee-ai-agent ];
+          config = {
+            Cmd = [ "${tee-ai-agent}/bin/tee_ai_agent" ];
+          };
+        };
       };
 
       # Allow using `nix run` on the project
@@ -144,7 +153,7 @@
           checks = self.checks.${system};
           packages = with pkgs; [
             rust-analyzer
-            dive
+            dive # inspect docker images
           ];
         }
       );
