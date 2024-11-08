@@ -17,7 +17,6 @@
     let
       inherit (nixpkgs) lib;
       system = "x86_64-linux";
-
       pkgs = (
         import nixpkgs {
           inherit system;
@@ -59,9 +58,8 @@
           ];
         }
       );
-      # inherit (pkgs) lib;
-      craneLib = crane.mkLib pkgs;
 
+      craneLib = crane.mkLib pkgs;
       src = craneLib.path ./.;
 
       # Common arguments can be set here to avoid repeating them later
@@ -72,38 +70,21 @@
         version = "0.1.0";
         nativeBuildInputs = with pkgs; [
           pkg-config
-          # gcc
-          # perl
-          # cmake
           clang
-          # protobuf
-          # mold-wrapped
-
         ];
         buildInputs = with pkgs; [
           libclang
-          # fontconfig
-          # freetype
-          # protobufc
           openssl
           sgx-dcap-default-qpl
-          # curl
-          # zstd
-          # zlib
-          # bzip2
-          # lz4
           rocksdb
-          # (snappy.override { static = true; })
-
-          # For running nextest
-          cacert
+          cacert # For running nextest
         ];
       } // commonVars;
 
       commonVars = {
         LIBCLANG_PATH = "${lib.getLib pkgs.libclang}/lib";
         ROCKSDB_LIB_DIR = "${pkgs.rocksdb}/lib";
-        DO_NOT_FORMAT = 1; # fix auto_generate_cdp
+        DO_NOT_FORMAT = 1; # fixup auto_generate_cdp
       };
 
       # Build *just* the cargo dependencies, so we can reuse all of that
@@ -145,9 +126,11 @@
         );
       };
 
-      # Expose the node and services as packages
-      packages.${system} = {
-        default = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
+      packages.${system} = rec {
+        default = tee-ai-agent;
+
+        # Raw tee ai agent binary derivation
+        tee-ai-agent = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
       };
 
       # Allow using `nix run` on the project
@@ -161,6 +144,7 @@
           checks = self.checks.${system};
           packages = with pkgs; [
             rust-analyzer
+            dive
           ];
         }
       );
