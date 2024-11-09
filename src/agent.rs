@@ -4,6 +4,8 @@ use std::time::UNIX_EPOCH;
 use std::{collections::HashMap, time::SystemTime};
 
 use crate::encumber::{FullAccountDetails, XAccountDetails};
+use crate::hyperbolic;
+use crate::pipeline::ENV;
 use crate::{
     config::Config,
     db::{
@@ -57,6 +59,8 @@ impl Agent {
             ..
         } = account_details;
 
+        let env = ENV.get().expect("unreachable");
+
         let twitter_client = TwitterClient::new(
             X_API_URL.into(),
             x_consumer_key,
@@ -77,8 +81,8 @@ impl Agent {
         let database = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
 
         let hyperbolic_client =
-            HyperbolicClient::new(config.hyperbolic_api_key.clone(), HYPERBOLIC_API_URL.into());
-        let openai_client = OpenAIClient::new(config.open_ai_api_key, OPEN_AI_API_URL.into());
+            HyperbolicClient::new(env.hyperbolic_api_key.clone(), HYPERBOLIC_API_URL.into());
+        let openai_client = OpenAIClient::new(env.open_ai_api_key.clone(), OPEN_AI_API_URL.into());
 
         // Create collection for vector db. By default the embedding size will be 1536.
         // See: https://platform.openai.com/docs/guides/embeddings

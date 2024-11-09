@@ -8,9 +8,6 @@ const CONFIG: &str = include_str!("../config.toml");
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Config {
-    pub open_router_api_key: String,
-    pub hyperbolic_api_key: String,
-    pub open_ai_api_key: String,
     pub email: String,
     pub email_password: String,
     pub x_username: String,
