@@ -1,14 +1,26 @@
+# The email that you used to sign up the Agents twitter account. Only support cock.li emails at the moment
 email = ""
+# The password to log into this email. The first thing the ai agent does is change this password 
 email_password = ""
+# The username to the Agents twitter account
 x_username = ""
+# The starter password to the Agents twitter account. The agent changes this first thing
 x_password = ""
+# The URL an ethereum rpc provider. The agent uses block numbers from here to decide when to unlock the account
 eth_rpc_url = ""
+# The path to the Agents DB, this is fully sealed by the SGX before being written to
 kv_db_path = ""
+# The agent will only store memories that have a significance score greater than this number on a scale of 1-10 significance. The prompt that agent uses to determine this is customizable in prompts.toml
 min_storing_memory_score = 2
+# The agent will only tweet a post if its signicance is greater than this. The prompt to determine this is customizable in prompts.toml
 min_posting_score = 3
+# How many mentions the agent will consider responding to on one run
 max_num_mentions = 50
+# How many tweets the agent will pull from the timeline at once
 max_timeline_tweets = 50
+# the number of long term memories the Agent will use in his prompt to generate a tweet
 num_long_term_memories = 5
+# the number of recent posts the Agent will use to in his prompt to generate a tweet
 num_recent_posts = 5
-# in seconds when do you want to the bot run before handing over the account credentials
+# in seconds how long the bot will run before handing over the account credentials
 release_credentials = 604800
