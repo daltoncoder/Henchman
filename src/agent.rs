@@ -36,7 +36,7 @@ pub struct Agent {
     openai_client: OpenAIClient,
     database: Database,
     user_id: String,
-    eth_private_key: SecretKey,
+    _eth_private_key: SecretKey,
     config: AgentConfig,
 }
 
@@ -98,7 +98,7 @@ impl Agent {
             openai_client,
             database,
             user_id,
-            eth_private_key,
+            _eth_private_key: eth_private_key,
             config: agent_config,
         })
     }
