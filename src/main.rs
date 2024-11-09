@@ -2,6 +2,7 @@ use std::error::Error;
 
 use crate::encumber::encumber;
 use config::Config;
+use env::wait_for_api_keys;
 use pipeline::Pipeline;
 use prompts::Prompts;
 use release_credentials::timelock;
@@ -12,6 +13,7 @@ pub mod attestation;
 pub mod config;
 pub mod db;
 pub mod encumber;
+pub mod env;
 pub mod hyperbolic;
 pub mod openai;
 pub mod pipeline;
@@ -21,12 +23,6 @@ pub mod twitter;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let prompts = Prompts::load();
-    let config = Config::load();
-
-    let mut pipeline = Pipeline::new(config, prompts).await;
-    pipeline.run().await;
-
     // Quote Server logs config
     let fmt_layer = fmt::layer()
         .with_target(true)
@@ -43,8 +39,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with(fmt_layer)
         .init();
 
+    let prompts = Prompts::load();
+    let config = Config::load();
+
+    // First wait to be provided the api keys we need to run the AI Agen
+    wait_for_api_keys().await;
+
+    // then encumber the account
+    let account_details = encumber((&config).into());
+
     // Server for attestation Quote
-    attestation::server::quote_server().await;
+    let quote_server_handle = tokio::task::spawn(attestation::server::quote_server(
+        account_details.x_account.x_username.clone(),
+    ));
+
+    let timelock_handle = tokio::task::spawn(timelock(
+        account_details.clone(),
+        config.release_credentials,
+        config.eth_rpc_url.clone(),
+    ));
+
+    let mut pipeline = Pipeline::new(config, prompts, account_details).await;
+    pipeline.run().await;
+
+    // if pipeline stopped running we can shut her down
+    quote_server_handle.abort();
+    timelock_handle.abort();
 
     Ok(())
 }

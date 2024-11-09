@@ -1,7 +1,5 @@
 // The config file for this app acts as a typical .env file. Alot of API keys are needed for this agent
 
-use std::{fs, path::PathBuf};
-
 use serde::{Deserialize, Serialize};
 
 const CONFIG: &str = include_str!("../config.toml");

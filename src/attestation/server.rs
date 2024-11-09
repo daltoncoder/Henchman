@@ -1,6 +1,4 @@
-use axum::{
-    response::IntoResponse, routing::get, Router, Json,
-};
+use axum::{response::IntoResponse, routing::get, Json, Router};
 
 use crate::attestation::ra::ra_get_quote;
 
@@ -12,7 +10,6 @@ use axum::http::{
 };
 
 use tower_http::cors::CorsLayer;
-
 
 #[derive(Serialize)]
 pub struct HealthResponse {
@@ -37,22 +34,22 @@ pub async fn health_checker_handler() -> impl IntoResponse {
     Json(json_response)
 }
 
-pub fn create_router() -> Router {
-
-    Router::new()
-        .route("/api/healthchecker", get(health_checker_handler))
-        .route("/api/quote", get(ra_get_quote))
-}
-
-
-pub async fn quote_server() {
+pub fn create_router(twitter_username: String) -> Router {
     let cors = CorsLayer::new()
         .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET])
         .allow_credentials(true)
         .allow_headers([AUTHORIZATION, ACCEPT, CONTENT_TYPE]);
- 
-    let app = create_router().layer(cors);
+
+    Router::new()
+        .route("/api/healthchecker", get(health_checker_handler))
+        .route("/api/quote", get(ra_get_quote))
+        .layer(cors)
+        .with_state(twitter_username)
+}
+
+pub async fn quote_server(twitter_username: String) {
+    let app = create_router(twitter_username);
 
     println!("🚀 Quote Server started successfully");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();

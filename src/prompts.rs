@@ -1,5 +1,4 @@
 use aho_corasick::AhoCorasick;
-use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 

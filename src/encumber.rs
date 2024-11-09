@@ -7,7 +7,7 @@ use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 
 use crate::config::Config;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AccountDetails {
     pub x_username: String,
     pub x_password: String,
@@ -15,12 +15,14 @@ pub struct AccountDetails {
     pub email_password: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct FullAccountDetails {
     pub x_account: XAccountDetails,
     pub email: String,
     pub email_password: String,
 }
 
+#[derive(Debug, Clone)]
 pub struct XAccountDetails {
     pub x_email: String,
     pub x_username: String,
