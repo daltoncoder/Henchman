@@ -7,6 +7,7 @@ use release_credentials::timelock;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod agent;
+pub mod attestation;
 pub mod config;
 pub mod db;
 pub mod encumber;
@@ -16,31 +17,33 @@ pub mod pipeline;
 pub mod prompts;
 pub mod release_credentials;
 pub mod twitter;
-pub mod attestation;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let prompts = Prompts::load("./prompts.toml".into());
-    let config = Config::load("./config.toml".into());
+    let prompts = Prompts::load();
+    let config = Config::load();
     // todo, encumber account, and starte the realease credentials script
     let mut pipeline = Pipeline::new(&config, prompts).await;
     pipeline.run().await;
-    
+
     // Quote Server logs config
     let fmt_layer = fmt::layer()
-		.with_target(true)
-		.with_level(true)
-		.with_thread_ids(false)
-		.with_thread_names(true);
+        .with_target(true)
+        .with_level(true)
+        .with_thread_ids(false)
+        .with_thread_names(true);
 
-	let filter_layer = EnvFilter::try_from_default_env()
-		.or_else(|_| EnvFilter::try_new::<String>("Debug".into()))
-		.expect("Error tracing subscriber filter layer");
+    let filter_layer = EnvFilter::try_from_default_env()
+        .or_else(|_| EnvFilter::try_new::<String>("Debug".into()))
+        .expect("Error tracing subscriber filter layer");
 
-	tracing_subscriber::registry().with(filter_layer).with(fmt_layer).init();
-    
+    tracing_subscriber::registry()
+        .with(filter_layer)
+        .with(fmt_layer)
+        .init();
+
     // Server for attestation Quote
     attestation::server::quote_server().await;
-    
+
     Ok(())
 }

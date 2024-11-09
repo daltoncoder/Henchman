@@ -23,11 +23,12 @@ pub struct Prompts {
     pub example_tweets: Vec<String>,
 }
 
+const PROMPTS: &str = include_str!("../prompts.toml");
+
 impl Prompts {
     /// Loads a prompts.toml file to create this struct
-    pub fn load(path: PathBuf) -> Self {
-        let raw = fs::read_to_string(path).expect("Unable to read prompts.toml");
-        toml::from_str(&raw).expect("Unable to parse prompts.toml")
+    pub fn load() -> Self {
+        toml::from_str(PROMPTS).expect("Unable to parse prompts.toml")
     }
 
     pub fn get_follow_prompt(&self, usernames: Vec<String>) -> String {
@@ -103,7 +104,7 @@ impl Prompts {
 
 #[test]
 fn test_our_prompts_toml() {
-    let prompts = Prompts::load("./prompts.toml".into());
+    let prompts = Prompts::load();
 
     println!("Tweet Template:");
     println!("{}", prompts.tweet_template);
@@ -129,7 +130,7 @@ mod tests {
     use super::*;
 
     fn get_prompts() -> Prompts {
-        Prompts::load("./prompts.toml".into())
+        Prompts::load()
     }
 
     fn get_vec_of_strings(text: &str) -> Vec<String> {

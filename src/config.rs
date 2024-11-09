@@ -4,6 +4,8 @@ use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+const CONFIG: &str = include_str!("../config.toml");
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Config {
     pub open_router_api_key: String,
@@ -34,8 +36,12 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load(path: PathBuf) -> Self {
-        let raw = fs::read_to_string(path).expect("Unable to read config.toml");
-        toml::from_str(&raw).expect("Unable to parse config.toml")
+    pub fn load() -> Self {
+        toml::from_str(CONFIG).expect("Unable to parse config.toml")
     }
+}
+
+#[test]
+fn test_load() {
+    Config::load();
 }
