@@ -1,17 +1,11 @@
 open_router_api_key = ""
 hyperbolic_api_key = ""
 open_ai_api_key = ""
-x_consumer_key = ""
-x_consumer_key_secret = ""
-x_access_token = ""
-x_access_token_secret = ""
-x_client_id = ""
-x_client_secret = ""
-eth_rpc_url = ""
-x_api_url = "https://api.twitter.com/2"
-hyperbolic_api_url = "https://api.hyperbolic.xyz/v1"
-open_ai_api_url = "https://api.openai.com/v1"
+email = ""
+email_password = ""
 x_username = ""
+x_password = ""
+eth_rpc_url = ""
 kv_db_path = ""
 min_storing_memory_score = 2
 min_posting_score = 3
@@ -19,5 +13,5 @@ max_num_mentions = 50
 max_timeline_tweets = 50
 num_long_term_memories = 5
 num_recent_posts = 5
-# in seconds when do you want to the bot to drop the timestamp
+# in seconds when do you want to the bot run before handing over the account credentials
 release_credentials = 604800

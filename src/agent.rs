@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::time::UNIX_EPOCH;
 use std::{collections::HashMap, time::SystemTime};
 
+use crate::encumber::{FullAccountDetails, XAccountDetails};
 use crate::{
     config::Config,
     db::{
@@ -23,6 +24,9 @@ use anyhow::{anyhow, Result};
 /// Should contain short term memory, long term memory, external context
 
 const LONG_TERM_MEMORY: &str = "long-term-memory";
+const X_API_URL: &str = "https://api.twitter.com/2";
+const HYPERBOLIC_API_URL: &str = "https://api.hyperbolic.xyz/v1";
+const OPEN_AI_API_URL: &str = "https://api.openai.com/v1";
 
 pub struct Agent {
     prompts: Prompts,
@@ -36,23 +40,27 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub async fn new(config: Config, eth_private_key: SecretKey, prompts: Prompts) -> Result<Self> {
+    pub async fn new(
+        account_details: XAccountDetails,
+        config: Config,
+        eth_private_key: SecretKey,
+        prompts: Prompts,
+    ) -> Result<Self> {
         let agent_config = AgentConfig::from(&config);
 
-        let Config {
-            x_api_url,
+        let XAccountDetails {
             x_consumer_key,
-            x_consumer_key_secret,
+            x_consumer_secret,
             x_access_token,
             x_access_token_secret,
             x_username,
             ..
-        } = config;
+        } = account_details;
 
         let twitter_client = TwitterClient::new(
-            x_api_url,
+            X_API_URL.into(),
             x_consumer_key,
-            x_consumer_key_secret,
+            x_consumer_secret,
             x_access_token,
             x_access_token_secret,
         );
@@ -68,11 +76,9 @@ impl Agent {
         // `docker run -p 6333:6333 -p 6334:6334 qdrant/qdrant`
         let database = Database::new("http://localhost:6334", PathBuf::from(&config.kv_db_path))?; // TODO: get url from config
 
-        let hyperbolic_client = HyperbolicClient::new(
-            config.hyperbolic_api_key.clone(),
-            config.hyperbolic_api_url.clone(),
-        );
-        let openai_client = OpenAIClient::new(config.open_ai_api_key, config.open_ai_api_url);
+        let hyperbolic_client =
+            HyperbolicClient::new(config.hyperbolic_api_key.clone(), HYPERBOLIC_API_URL.into());
+        let openai_client = OpenAIClient::new(config.open_ai_api_key, OPEN_AI_API_URL.into());
 
         // Create collection for vector db. By default the embedding size will be 1536.
         // See: https://platform.openai.com/docs/guides/embeddings

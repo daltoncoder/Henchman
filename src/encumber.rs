@@ -1,32 +1,51 @@
 // This file is ran at the start of the enclave to "encumber" the account and make sure this TEE ai agent is the only one that has access to it
 
 use rand::{thread_rng, Rng};
-use std::{ffi::OsStr, time::Duration};
+use std::{ffi::OsStr, sync::Arc, time::Duration};
 
-use headless_chrome::{Browser, LaunchOptionsBuilder};
+use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
+
+use crate::config::Config;
 
 #[derive(Clone)]
 pub struct AccountDetails {
-    pub x_email: String,
     pub x_username: String,
     pub x_password: String,
     pub email: String,
     pub email_password: String,
 }
 
-pub async fn encumber(account_details: AccountDetails) -> AccountDetails {
-    let mut new_details = account_details.clone();
+pub struct FullAccountDetails {
+    pub x_account: XAccountDetails,
+    pub email: String,
+    pub email_password: String,
+}
 
-    new_details.x_password = change_twitter_password(
+pub struct XAccountDetails {
+    pub x_email: String,
+    pub x_username: String,
+    pub x_password: String,
+    pub x_consumer_key: String,
+    pub x_consumer_secret: String,
+    pub x_access_token: String,
+    pub x_access_token_secret: String,
+}
+
+pub fn encumber(account_details: AccountDetails) -> FullAccountDetails {
+    let x_account = encumber_twitter_account(
         &account_details.x_username,
         &account_details.x_password,
-        &account_details.x_email,
+        &account_details.email,
     );
 
-    new_details.email_password =
+    let email_password =
         change_mail_password(&account_details.email, &account_details.email_password);
 
-    new_details
+    FullAccountDetails {
+        x_account,
+        email: account_details.email,
+        email_password,
+    }
 }
 
 fn get_browser() -> Browser {
@@ -36,6 +55,7 @@ fn get_browser() -> Browser {
             [
                 OsStr::new("--start-maximized"),
                 OsStr::new("--disable-dev-shm-usage"),
+                OsStr::new("--window-size=1920,1080"),
             ]
             .into(),
         )
@@ -43,7 +63,7 @@ fn get_browser() -> Browser {
         .expect("failed building chrome options");
     Browser::new(options).expect("Failed to build chrome browser")
 }
-fn change_twitter_password(x_username: &str, x_password: &str, x_email: &str) -> String {
+fn encumber_twitter_account(x_username: &str, x_password: &str, x_email: &str) -> XAccountDetails {
     let browser = get_browser();
     let tab = browser.new_tab().expect("Failed to create tab");
 
@@ -67,7 +87,11 @@ fn change_twitter_password(x_username: &str, x_password: &str, x_email: &str) ->
     tab.press_key("Enter").unwrap();
 
     // we should sleep here a bit
-    std::thread::sleep(Duration::from_secs(5));
+    std::thread::sleep(Duration::from_secs(3));
+
+    let (x_consumer_key, x_consumer_secret, x_access_token, x_access_token_secret) =
+        regenerate_x_tokens(tab.clone());
+
     let random_password = generate_random_password(10, 1, 1, 1);
 
     tab.navigate_to("https://x.com/settings/password").unwrap();
@@ -92,7 +116,16 @@ fn change_twitter_password(x_username: &str, x_password: &str, x_email: &str) ->
 
     button.click().unwrap();
     std::thread::sleep(Duration::from_secs(3));
-    random_password
+
+    XAccountDetails {
+        x_email: x_email.into(),
+        x_username: x_username.into(),
+        x_password: x_password.into(),
+        x_consumer_key,
+        x_consumer_secret,
+        x_access_token,
+        x_access_token_secret,
+    }
 }
 
 fn change_mail_password(email_string: &str, password_string: &str) -> String {
@@ -130,6 +163,87 @@ fn change_mail_password(email_string: &str, password_string: &str) -> String {
     tab.press_key("Enter").unwrap();
     std::thread::sleep(Duration::from_secs(5));
     random_pass
+}
+
+fn regenerate_x_tokens(tab: Arc<Tab>) -> (String, String, String, String) {
+    tab.navigate_to("https://developer.x.com/en/portal/projects-and-apps")
+        .unwrap();
+
+    let keys_button = tab.wait_for_element("img[alt=\"keys\"").unwrap();
+    keys_button.click().unwrap();
+
+    // Regenerate the Consumer Keys
+    // If the other keys are revoke this will be the only button on screen with this class
+    let consumer_regenerate = tab
+        .wait_for_element("button[class=\"Button Button--primary\"]")
+        .unwrap();
+    consumer_regenerate.click().unwrap();
+
+    tab.wait_for_element("button[data-testid=\"confirmation-dev-portal-dialog-action-button\"")
+        .unwrap()
+        .click()
+        .unwrap();
+
+    let api_key = tab
+        .wait_for_xpath("/html/body/div[5]/div/div/div[1]/div[2]/div[2]/div[2]/p")
+        .unwrap();
+    let consumer_key = api_key.get_inner_text().unwrap();
+
+    let api_secret = tab
+        .wait_for_xpath("/html/body/div[5]/div/div/div[1]/div[2]/div[3]/div[2]/p")
+        .unwrap();
+
+    let consumer_secret = api_secret.get_inner_text().unwrap();
+
+    tab.wait_for_xpath("/html/body/div[5]/div/div/div[2]/div/button")
+        .unwrap()
+        .click()
+        .unwrap();
+
+    tab.wait_for_xpath(
+        "/html/body/div[1]/div/div/div[2]/div[2]/div[2]/div[1]/div/div[3]/div[2]/div/button",
+    )
+    .unwrap()
+    .click()
+    .unwrap();
+
+    // todo: This will fail if they already have a token generated here, set up a flow to handle this case as well
+    let access_token = tab
+        .wait_for_xpath("/html/body/div[5]/div/div/div[1]/div[2]/div[2]/div[2]/p")
+        .unwrap()
+        .get_inner_text()
+        .unwrap();
+
+    let access_token_secret = tab
+        .wait_for_xpath("/html/body/div[5]/div/div/div[1]/div[2]/div[3]/div[2]/p")
+        .unwrap()
+        .get_inner_text()
+        .unwrap();
+
+    tab.wait_for_xpath("/html/body/div[5]/div/div/div[2]/div/button")
+        .unwrap()
+        .click()
+        .unwrap();
+
+    std::thread::sleep(Duration::from_secs(3));
+
+    (
+        consumer_key,
+        consumer_secret,
+        access_token,
+        access_token_secret,
+    )
+}
+
+impl From<&Config> for AccountDetails {
+    fn from(value: &Config) -> Self {
+        AccountDetails {
+            x_username: value.x_username.clone(),
+            x_password: value.x_password.clone(),
+            email: value.email.clone(),
+            email_password: value.email_password.clone(),
+        }
+    }
 }
 
 fn generate_random_password(

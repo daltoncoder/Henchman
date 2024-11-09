@@ -9,7 +9,12 @@ use rand::Rng;
 use std::time::Duration;
 use tokio::select;
 
-use crate::{agent::Agent, config::Config, prompts::Prompts};
+use crate::{
+    agent::Agent,
+    config::Config,
+    encumber::{encumber, FullAccountDetails},
+    prompts::Prompts,
+};
 
 pub struct Pipeline {
     /// The Ai Agent
@@ -18,11 +23,19 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub async fn new(config: &Config, prompts: Prompts) -> Self {
-        let pipeline_config: PipelineConfig = config.into();
-        let agent: Agent = Agent::new(config.clone(), generate_eth_private_key(), prompts)
-            .await
-            .expect("Failed to create Agent");
+    pub async fn new(config: Config, prompts: Prompts) -> Self {
+        // first encumber the account
+        let account_details = encumber((&config).into());
+
+        let pipeline_config: PipelineConfig = (&config).into();
+        let agent: Agent = Agent::new(
+            account_details.x_account,
+            config,
+            generate_eth_private_key(),
+            prompts,
+        )
+        .await
+        .expect("Failed to create Agent");
 
         Self {
             agent,

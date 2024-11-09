@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use crate::encumber::encumber;
 use config::Config;
 use pipeline::Pipeline;
 use prompts::Prompts;
@@ -22,8 +23,8 @@ pub mod twitter;
 async fn main() -> Result<(), Box<dyn Error>> {
     let prompts = Prompts::load();
     let config = Config::load();
-    // todo, encumber account, and starte the realease credentials script
-    let mut pipeline = Pipeline::new(&config, prompts).await;
+
+    let mut pipeline = Pipeline::new(config, prompts).await;
     pipeline.run().await;
 
     // Quote Server logs config
