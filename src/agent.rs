@@ -106,18 +106,17 @@ impl Agent {
         // Step 2.2: add to database every tweet id you have seen
         println!("Get timeline tweets...");
         let timeline_tweets = self
-            .get_timeline_tweets(Some(self.config.max_timeline_tweets))
+            .get_timeline_tweets(self.config.max_timeline_tweets)
             .await?;
         println!("Get mentions...");
-        let mentions = self
-            .get_mentions(Some(self.config.max_num_mentions))
-            .await?;
+        let mentions = self.get_mentions(self.config.max_num_mentions).await?;
 
         let mut context = Vec::with_capacity(timeline_tweets.len() + mentions.len());
         timeline_tweets
             .iter()
             .for_each(|t| context.push(t.to_string()));
         mentions.iter().for_each(|t| context.push(t.to_string()));
+        println!("{context:?}");
 
         // Step 2.3: Check wallet address in posts and decide if we should take onchain action
 
@@ -222,11 +221,13 @@ impl Agent {
     /// Marks retrieved tweets as seen.
     pub async fn get_timeline_tweets(
         &self,
-        max_timeline_tweets: Option<u16>,
+        max_timeline_tweets: usize,
     ) -> Result<Vec<TimelineTweet>> {
         let mut tweets = self
             .twitter_client
-            .get_timeline(&self.user_id, max_timeline_tweets)
+            // always get the max number of tweets (100) in case we already seen the newer ones
+            // before
+            .get_timeline(&self.user_id, Some(100))
             .await?;
 
         let usernames: HashMap<&String, &String> = tweets
@@ -237,11 +238,12 @@ impl Agent {
             .collect();
 
         for tweet in tweets.data.iter_mut() {
-            self.database.insert_tweet_id(&tweet.id)?;
             if let Some(username) = usernames.get(&tweet.author_id) {
                 tweet.username = Some(String::from(*username));
             }
         }
+
+        // TODO: we can buffer the unused tweets here to reduce API calls and prevent rate limiting
         let tweets = tweets
             .data
             .into_iter()
@@ -253,7 +255,12 @@ impl Agent {
                     .expect("failed to read tweet id from db")
                     && t.username.is_some()
             })
-            .collect();
+            .take(max_timeline_tweets)
+            .collect::<Vec<TimelineTweet>>();
+
+        for tweet in tweets.iter() {
+            self.database.insert_tweet_id(&tweet.id)?;
+        }
 
         Ok(tweets)
     }
@@ -261,10 +268,12 @@ impl Agent {
     /// Retrieves the latest mentions.
     /// Filters out tweets that have already been seen.
     /// Marks retrieved tweets as seen.
-    pub async fn get_mentions(&self, max_num_mentions: Option<u16>) -> Result<Vec<Tweet>> {
+    pub async fn get_mentions(&self, max_num_mentions: usize) -> Result<Vec<Tweet>> {
         let mut mentions = self
             .twitter_client
-            .get_mentions(&self.user_id, max_num_mentions)
+            // always get the max number of tweets (100) in case we already seen the newer ones
+            // before
+            .get_mentions(&self.user_id, Some(100))
             .await?;
 
         let usernames: HashMap<&String, &String> = mentions
@@ -275,7 +284,6 @@ impl Agent {
             .collect();
 
         for tweet in mentions.data.iter_mut() {
-            self.database.insert_tweet_id(&tweet.id)?;
             if let Some(username) = usernames.get(&tweet.author_id) {
                 tweet.username = Some(String::from(*username));
             }
@@ -291,7 +299,12 @@ impl Agent {
                     .expect("failed to read tweet id from db")
                     && t.username.is_some()
             })
-            .collect();
+            .take(max_num_mentions)
+            .collect::<Vec<Tweet>>();
+
+        for tweet in tweets.iter() {
+            self.database.insert_tweet_id(&tweet.id)?;
+        }
 
         Ok(tweets)
     }
@@ -415,8 +428,8 @@ impl Agent {
 }
 
 struct AgentConfig {
-    max_num_mentions: u16,
-    max_timeline_tweets: u16,
+    max_num_mentions: usize,
+    max_timeline_tweets: usize,
     num_long_term_memories: u64,
     min_storing_memory_score: u16,
     min_posting_score: u16,
