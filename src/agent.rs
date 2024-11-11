@@ -173,18 +173,7 @@ impl Agent {
         println!();
 
         // Step 7: Score siginigicance of the new post
-        let mut tweet_score = self
-            .hyperbolic_client
-            .generate_text(
-                &tweet,
-                "Respond only with a score from 1 to 10 for the given memory",
-            )
-            .await?;
-        if tweet_score.choices.is_empty() {
-            return Err(anyhow!("Failed to generate significance score for tweet"));
-        }
-        let tweet_score = tweet_score.choices.swap_remove(0).message.content;
-        let tweet_score = tweet_score.parse::<u16>()?;
+        let tweet_score = self.score_tweet(&tweet, 3).await?;
 
         println!("Tweet score:");
         println!("{tweet_score}");
@@ -411,6 +400,33 @@ impl Agent {
         self.database.insert_user_id(target_user_id)?;
 
         Ok(())
+    }
+
+    pub async fn score_tweet(&self, tweet: &str, max_tries: u32) -> Result<u16> {
+        let mut tries = 0;
+        while tries < max_tries {
+            let Ok(mut score) = self
+                .hyperbolic_client
+                .generate_text(
+                    &tweet,
+                    "Respond with a score from 1 to 10 for the given memory. Your answer should only contain an integer.",
+                )
+                .await
+            else {
+                continue;
+            };
+            if score.choices.is_empty() {
+                continue;
+            }
+            let score = score.choices.swap_remove(0).message.content;
+            if let Ok(score) = score.parse::<u16>() {
+                return Ok(score);
+            }
+
+            tries += 1;
+        }
+
+        Err(anyhow!("Failed to generate tweet score"))
     }
 
     pub async fn respond_to_mentions(&self) -> Result<()> {
