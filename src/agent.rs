@@ -484,7 +484,8 @@ impl Agent {
                 println!("No mentions found that are worth our time.");
                 return Ok(());
             }
-            let Some(mention) = mentions_map.get(&max_id.to_owned()) else {
+            let max_id = max_id.to_owned();
+            let Some(mention) = mentions_map.get(&max_id) else {
                 println!("failed to parse prompt 4");
                 continue;
             };
