@@ -51,7 +51,7 @@ pub fn create_router(twitter_username: String) -> Router {
 pub async fn quote_server(twitter_username: String) {
     let app = create_router(twitter_username);
 
-    println!("🚀 Quote Server started successfully");
+    tracing::info!("🚀 Quote Server started successfully");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

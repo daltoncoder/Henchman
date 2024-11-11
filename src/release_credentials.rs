@@ -62,7 +62,7 @@ pub async fn timelock(account_details: FullAccountDetails, unlock_time: u64, rpc
                 }
             }
             Err(err) => {
-                println!("Unable to contact RPC endoint {err} trying again in 10 minutes")
+                tracing::warn!("Unable to contact RPC endoint {err} trying again in 10 minutes")
             }
         }
     }

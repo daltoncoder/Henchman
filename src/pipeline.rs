@@ -49,30 +49,30 @@ impl Pipeline {
         loop {
             let scroll_wait_time = self.config.get_scroll_sleep_time();
 
-            println!("Waiting to start scrolling : {:?}", scroll_wait_time);
+            tracing::info!("Waiting to start scrolling : {:?}", scroll_wait_time);
 
             tokio::time::sleep(scroll_wait_time).await;
 
             let scroll_duration = self.config.get_scroll_duration_time();
-            println!("Starting Scrolling for: {:?}", scroll_duration);
+            tracing::info!("Starting Scrolling for: {:?}", scroll_duration);
             let scroll_duration_fut = tokio::time::sleep(scroll_duration);
 
             // todo: I think tokio Sleep is cancel safe we probably dont need to pin here
             tokio::pin!(scroll_duration_fut);
             loop {
                 let run_sleep_time = self.config.get_run_sleep_time();
-                println!("Next run in: {:?}", run_sleep_time);
+                tracing::info!("Next run in: {:?}", run_sleep_time);
 
                 let run_sleep_fut = tokio::time::sleep(run_sleep_time);
                 select! {
                     _ = &mut scroll_duration_fut => {
-                        println!("End Scrolling");
+                        tracing::info!("End Scrolling");
                         break;
                     }
 
                     _ = run_sleep_fut => {
                         if let Err(e) = self.agent.run().await {
-                            println!("Error while running error: {e:?}");
+                            tracing::info!("Error while running error: {e:?}");
                         };
                     }
                 }
