@@ -119,6 +119,7 @@ impl Agent {
             .await?;
         println!("Get mentions...");
         let mentions = self.get_mentions(self.config.max_num_mentions).await?;
+        println!("{mentions:?}");
 
         let mut context = Vec::with_capacity(timeline_tweets.len() + mentions.len());
         timeline_tweets
@@ -174,7 +175,6 @@ impl Agent {
 
         // Step 7: Score siginigicance of the new post
         let tweet_score = self.score_tweet(&tweet, 3).await?;
-
         println!("Tweet score:");
         println!("{tweet_score}");
         println!();
@@ -210,6 +210,10 @@ impl Agent {
             println!("Posting tweet");
             self.twitter_client.post_tweet(&tweet).await?;
         }
+
+        // Step 10: Respond to mentions
+        self.respond_to_mentions(&mentions, &tweet_prompt, 3)
+            .await?;
 
         Ok(())
     }
@@ -408,7 +412,7 @@ impl Agent {
             let Ok(mut score) = self
                 .hyperbolic_client
                 .generate_text(
-                    &tweet,
+                    tweet,
                     "Respond with a score from 1 to 10 for the given memory. Your answer should only contain an integer.",
                 )
                 .await
@@ -429,24 +433,89 @@ impl Agent {
         Err(anyhow!("Failed to generate tweet score"))
     }
 
-    pub async fn respond_to_mentions(&self) -> Result<()> {
-        //let max_num_tweets = 50; // TODO: make config
+    pub async fn respond_to_mentions(
+        &self,
+        mentions: &[Tweet],
+        context: &str,
+        max_tries: u32,
+    ) -> Result<()> {
+        let mut mentions_list = Vec::with_capacity(mentions.len());
+        let mut mentions_map = HashMap::with_capacity(mentions.len());
+        for mention in mentions {
+            mentions_list.push(format!("id: {}, tweet: {}", mention.id, mention.text));
+            mentions_map.insert(&mention.id, mention);
+        }
+        let prompt_context = self.prompts.get_mentions_prompt(mentions_list);
 
-        //let mentions = self
-        //    .twitter_client
-        //    .get_mentions(&self.user_id, Some(max_num_mentions))
-        //    .await?;
+        let mut tries = 0;
+        while tries < max_tries {
+            let Ok(mut res) = self.hyperbolic_client
+            .generate_text(&prompt_context, "Give a score from 1 to 10 for each of these tweets. Your response should be in the CSV format, where the first column is the id and the second column is the score. There should not be a headline.")
+            .await else {
+                continue;
+            };
+            if res.choices.is_empty() {
+                continue;
+            }
+            let scores = res.choices.swap_remove(0).message.content;
+            let scores = scores.split("\n").collect::<Vec<&str>>();
 
-        //for mention in mentions.data {
-        //    let recent_tweets = self
-        //        .twitter_client
-        //        .get_user_tweets(mention.author_id, Some(max_num_tweets))
-        //        .await?;
-        //    // TODO: look for tweets that mention the bot?
-        //    // TODO: get context from bot's timeline?
-        //    // TODO: make tweets machine readable
-        //    // TODO: get username for each tweet
-        //}
+            let mut max_score = 0;
+            let mut max_id = "";
+            for score in scores {
+                let mut iter = score.split(",");
+                let Some(id) = iter.next() else {
+                    continue;
+                };
+                let id = id.trim();
+                let Some(score) = iter.next() else {
+                    continue;
+                };
+                let score = score.trim();
+                let Ok(score) = score.parse::<u8>() else {
+                    continue;
+                };
+                if score >= max_score {
+                    max_score = score;
+                    max_id = id;
+                }
+            }
+            if max_score < self.config.min_mention_score {
+                println!("No mentions found that are worth our time.");
+                return Ok(());
+            }
+            let Some(mention) = mentions_map.get(&max_id.to_owned()) else {
+                println!("failed to parse prompt 4");
+                continue;
+            };
+
+            let Ok(mut res) = self
+                .hyperbolic_client
+                .generate_text(
+                    context,
+                    &format!("Write a witty response to this tweet: {mention}"),
+                )
+                .await
+            else {
+                continue;
+            };
+            if res.choices.is_empty() {
+                continue;
+            }
+            let tweet = res.choices.swap_remove(0).message.content;
+
+            if self
+                .twitter_client
+                .reply_to_tweet(&tweet, &mention.id)
+                .await
+                .is_ok()
+            {
+                println!("Sent response: {tweet}");
+                return Ok(());
+            }
+
+            tries += 1;
+        }
 
         Ok(())
     }
@@ -459,6 +528,7 @@ struct AgentConfig {
     min_storing_memory_score: u16,
     min_posting_score: u16,
     num_recent_posts: usize,
+    min_mention_score: u8,
 }
 
 impl From<&Config> for AgentConfig {
@@ -470,6 +540,7 @@ impl From<&Config> for AgentConfig {
             min_storing_memory_score: value.min_storing_memory_score,
             min_posting_score: value.min_posting_score,
             num_recent_posts: value.num_recent_posts,
+            min_mention_score: value.min_mention_score,
         }
     }
 }

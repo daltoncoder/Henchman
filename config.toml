@@ -22,5 +22,7 @@ max_timeline_tweets = 50
 num_long_term_memories = 5
 # the number of recent posts the Agent will use to in his prompt to generate a tweet
 num_recent_posts = 5
+# the minimum score of a mention the agent will reply to
+min_mention_score = 5
 # in seconds how long the bot will run before handing over the account credentials
 release_credentials = 604800

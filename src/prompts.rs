@@ -5,6 +5,8 @@ use serde::{Deserialize, Serialize};
 /// Loads prompts for certain situations from a config file so it can easily be swapped out and changed
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Prompts {
+    /// Template for rating mentions in order to decide if we will respond.
+    pub mentions_template: String,
     /// Template that takes in a list of usernames.
     pub follow_template: String,
     /// Template that takes in: Short term memories, Long term memories, external context(recent notifications and tags on twitter), recent posts, and example tweets to generate the AI's tweet
@@ -28,6 +30,15 @@ impl Prompts {
     /// Loads a prompts.toml file to create this struct
     pub fn load() -> Self {
         toml::from_str(PROMPTS).expect("Unable to parse prompts.toml")
+    }
+
+    pub fn get_mentions_prompt(&self, tweets: Vec<String>) -> String {
+        let patterns = &["{tweets}"];
+        let replace_with = &[tweets.join("\n")];
+
+        let ac = AhoCorasick::new(patterns).unwrap();
+
+        ac.replace_all(&self.mentions_template, replace_with)
     }
 
     pub fn get_follow_prompt(&self, usernames: Vec<String>) -> String {

@@ -220,12 +220,9 @@ impl Database {
 mod tests {
     use std::path::PathBuf;
 
-    use crate::{
-        db::{
-            types::{Embedding, Memory, MemoryData},
-            Database,
-        },
-        twitter::api_types::SentTweet,
+    use crate::db::{
+        types::{Embedding, Memory, MemoryData},
+        Database,
     };
 
     #[ignore]

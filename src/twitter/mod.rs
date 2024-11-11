@@ -182,7 +182,7 @@ impl TwitterClient {
     }
 
     /// Replies to the tweet with id 'tweet_id'.
-    pub async fn reply_to_tweet(&self, content: String, tweet_id: String) -> Result<SentTweet> {
+    pub async fn reply_to_tweet(&self, content: &str, tweet_id: &str) -> Result<SentTweet> {
         let url = format!("{}/tweets", self.base_url);
 
         let json = serde_json::json!({
@@ -400,7 +400,7 @@ mod tests {
         );
 
         let tweet = client
-            .reply_to_tweet("oh really".to_string(), "1852054615954432343".to_string())
+            .reply_to_tweet("oh really", "1852054615954432343")
             .await
             .unwrap();
         println!("{tweet:?}");

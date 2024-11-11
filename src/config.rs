@@ -18,6 +18,7 @@ pub struct Config {
     pub max_timeline_tweets: usize,
     pub num_long_term_memories: u64,
     pub num_recent_posts: usize,
+    pub min_mention_score: u8,
     pub scroll_sleep: Option<(u64, u64)>,
     pub scroll_duration: Option<(u64, u64)>,
     pub run_sleep: Option<(u64, u64)>,
