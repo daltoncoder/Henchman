@@ -11,4 +11,4 @@ mkdir -p ./gramine/runtime/glibc/
 cp -f /usr/lib/x86_64-linux-gnu/gramine/libsysdb.so ./gramine/
 cp -frL /usr/lib/x86_64-linux-gnu/gramine/runtime/glibc/* ./gramine/runtime/glibc/
 
-cp ../../../{config.toml,prompts.toml} . -f
+cp -r ../../../chrome-linux

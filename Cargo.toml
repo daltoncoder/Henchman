@@ -12,7 +12,10 @@ reqwest = { version = "0.12", features = ["json"] }
 reqwest-oauth1 = "0.3"
 anyhow = "1"
 serde_json = "1"
-qdrant-client = { version = "1.12.1", default-features = false, features = ["download_snapshots", "serde"]}
+qdrant-client = { version = "1.12.1", default-features = false, features = [
+    "download_snapshots",
+    "serde",
+] }
 uuid = { version = "1.11", features = ["v4"] }
 fasthash = "0.4"
 rocksdb = "0.22"
@@ -24,7 +27,5 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter", "fmt"] }
 tracing = "0.1.37"
 base64 = "0.21.7"
 aho-corasick = "1.1.3"
-headless_chrome = { git = "https://github.com/rust-headless-chrome/rust-headless-chrome", features = [
-    "fetch",
-] }
+headless_chrome = { git = "https://github.com/rust-headless-chrome/rust-headless-chrome" }
 hex = "0.4.3"

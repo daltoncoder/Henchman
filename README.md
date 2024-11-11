@@ -7,8 +7,6 @@ Designed to be customizable so you can deploy your own AI agent. And with a secu
 
 You can design the bot to release its credentials after a set amount of time.
 
-More info soon but mess with the prompts.toml to give your bot its personality and config.toml to set some parameters on how often it should tweet.
-
 ## Customizing the bot
 
 There are two places you can easily customize the bot
@@ -32,6 +30,12 @@ Accounts you need for the agent:
   Once you have the twitter account, make sure you sign up for atleast free access to the Twitter API, and also if you generated an access key for the developer project make sure you revoke it before starting the bot or it will error out. The bot will generate the keys it needs when it starts
 
 Once you have the accounts made fill out the config.toml with the account information
+
+The ai agent needs a chrome binary to do some headless browsing and to login to accounts. At root of repo run this command to get the right binary
+
+```sh
+curl -o chrome-linux.zip https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1095492/chrome-linux.zip && unzip chrome-linux.zip
+```
 
 build the binary with nix so it can be reproducibly built and verified later
 

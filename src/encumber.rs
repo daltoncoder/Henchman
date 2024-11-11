@@ -53,6 +53,8 @@ pub fn encumber(account_details: AccountDetails) -> FullAccountDetails {
 fn get_browser() -> Browser {
     let options = LaunchOptionsBuilder::default()
         .sandbox(false)
+        .path(Some("./chrome-linux/chrome".into()))
+        .user_data_dir(Some("./chrome_user_data".into()))
         .args(
             [
                 OsStr::new("--start-maximized"),
@@ -295,4 +297,12 @@ fn test_random_pass() {
 
         println!("{pass}");
     }
+}
+
+#[test]
+fn test() {
+    let browser = get_browser();
+    let tab = browser.new_tab().unwrap();
+
+    tab.navigate_to("https://google.com").unwrap();
 }
