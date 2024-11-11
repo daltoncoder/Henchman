@@ -53,8 +53,8 @@ pub fn encumber(account_details: AccountDetails) -> FullAccountDetails {
 fn get_browser() -> Browser {
     let options = LaunchOptionsBuilder::default()
         .sandbox(false)
-        .path(Some("./chrome-linux/chrome".into()))
-        .user_data_dir(Some("./chrome_user_data".into()))
+        .path(Some("./trusted/chrome-linux/chrome".into()))
+        .user_data_dir(Some("./temporary".into()))
         .args(
             [
                 OsStr::new("--start-maximized"),

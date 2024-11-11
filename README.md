@@ -34,7 +34,7 @@ Once you have the accounts made fill out the config.toml with the account inform
 The ai agent needs a chrome binary to do some headless browsing and to login to accounts. At root of repo run this command to get the right binary
 
 ```sh
-curl -o chrome-linux.zip https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1095492/chrome-linux.zip && unzip chrome-linux.zip
+mkdir trusted && curl -o trusted/chrome-linux.zip https://storage.googleapis.com/chromium-browser-snapshots/Linux_x64/1095492/chrome-linux.zip && unzip trusted/chrome-linux.zip -d trusted
 ```
 
 build the binary with nix so it can be reproducibly built and verified later
