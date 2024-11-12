@@ -483,7 +483,6 @@ impl Agent {
             }
             let max_id = max_id.to_owned();
             let Some(mention) = mentions_map.get(&max_id) else {
-                tracing::info!("failed to parse prompt 4");
                 continue;
             };
 
