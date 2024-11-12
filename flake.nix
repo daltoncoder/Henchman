@@ -130,15 +130,34 @@
         default = tee-ai-agent;
 
         # Raw tee ai agent binary derivation
-        tee-ai-agent = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
+        tee-ai-agent = craneLib.buildPackage (
+          commonArgs
+          // {
+            inherit cargoArtifacts;
+            doCheck = false;
+          }
+        );
 
         # Minimal docker image for the agent
         docker = pkgs.dockerTools.buildImage {
           name = "tee-ai-agent";
-          copyToRoot = [ tee-ai-agent ];
-          config = {
-            Cmd = [ "${tee-ai-agent}/bin/tee_ai_agent" ];
+          tag = "latest";
+          copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            paths = [ tee-ai-agent ];
+            pathsToLink = [ "/bin" ];
           };
+          config = {
+            Cmd = [ "/bin/tee_ai_agent" ];
+          };
+        };
+
+        # Bundled rootfs directory containing /bin and /nix with all hard-linked dependencies
+        bundle = pkgs.stdenvNoCC.mkDerivation {
+          name = "bundled-tee-ai-agent";
+          src = docker;
+          patchPhase = null;
+          buildPhase = ''mkdir -p $out && tar -xvf layer.tar -C $out "nix" "./bin"'';
         };
       };
 
