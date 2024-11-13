@@ -3,63 +3,26 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixsgx = {
+      url = "github:matter-labs/nixsgx";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     crane.url = "github:ipetkov/crane";
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      crane,
-      flake-utils,
-      ...
-    }:
+    { self, ... }@inputs:
     let
-      inherit (nixpkgs) lib;
       system = "x86_64-linux";
       pkgs = (
-        import nixpkgs {
+        import inputs.nixpkgs {
           inherit system;
-          overlays = [
-            (final: prev: {
-              # Upstream PR: https://github.com/NixOS/nixpkgs/pull/338278
-              sgx-dcap-default-qpl = prev.stdenv.mkDerivation rec {
-                pname = "sgx-dcap-default-qpl";
-                version = "1.21";
-                src = prev.fetchFromGitHub {
-                  owner = "intel";
-                  repo = "SGXDataCenterAttestationPrimitives";
-                  rev = "dcap_${version}_reproducible";
-                  hash = "sha256-2ZMu9F46yR4KmTV8Os3fcjgF1uoXxBT50aLx72Ri/WY=";
-                  fetchSubmodules = true;
-                };
-                nativeBuildInputs = [ prev.pkg-config ];
-                buildInputs = with prev; [
-                  curl
-                  openssl
-                  boost
-                  sgx-sdk
-                ];
-                preBuild = ''
-                  source ${prev.sgx-sdk}/sgxsdk/environment
-                '';
-                makeFlags = [
-                  "-C QuoteGeneration"
-                  "qpl_wrapper"
-                ];
-                installPhase = ''
-                  mkdir -p $out/lib
-                  mv QuoteGeneration/build/linux/* $out/lib
-                  ln -s $out/lib/libdcap_quoteprov.so $out/lib/libdcap_quoteprov.so.1
-                  ln -s $out/lib/libsgx_default_qcnl_wrapper.so $out/lib/libsgx_default_qcnl_wrapper.so.1
-                '';
-              };
-            })
-          ];
+          overlays = [ inputs.nixsgx.overlays.default ];
         }
       );
+      inherit (pkgs) lib;
 
-      craneLib = crane.mkLib pkgs;
+      craneLib = inputs.crane.mkLib pkgs;
       src = craneLib.path ./.;
 
       # Common arguments can be set here to avoid repeating them later
@@ -75,9 +38,9 @@
         buildInputs = with pkgs; [
           libclang
           openssl
-          sgx-dcap-default-qpl
           rocksdb
-          cacert # For running nextest
+          cacert
+          nixsgx.sgx-dcap.default_qpl
         ];
       } // commonVars;
 
@@ -159,10 +122,38 @@
           patchPhase = null;
           buildPhase = ''mkdir -p $out && tar -xvf layer.tar -C $out "nix" "./bin"'';
         };
-      };
 
-      # Allow using `nix run` on the project
-      apps.${system}.default = flake-utils.lib.mkApp { drv = self.packages.${system}.default; };
+        # Reproducable gramine docker runtime for tee ai agent
+        gramine-docker = lib.tee.sgxGramineContainer {
+          name = "gramine-tee-ai-agent";
+          tag = "latest";
+
+          packages = [ tee-ai-agent ];
+          entrypoint = "${tee-ai-agent}/bin/tee_ai_agent";
+
+          manifest = {
+            loader = {
+              log_level = "debug";
+              env = {
+                RUST_LOG.passthrough = true;
+              };
+            };
+
+            sgx = {
+              edmm_enable = false;
+              enclave_size = "4G";
+              max_threads = 16;
+            };
+          };
+
+          # TODO: qcnl config? Currently fallback to using default intel v4 collateral endpoint
+          # sgx_default_qcnl_conf = '' ... '';
+
+          # TODO: Optionally use a signature file for the mrenclave, though we might not need anything for `mrsigner`.
+          #       For now, we fallback to the dummy testing key provided by nixsgx.
+          # sigFile = ./signature;
+        };
+      };
 
       # Allow using `nix develop` on the project
       devShells.${system}.default = craneLib.devShell (
