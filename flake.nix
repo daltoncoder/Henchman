@@ -3,10 +3,8 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nixsgx = {
-      url = "github:matter-labs/nixsgx";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # Reproducible 
+    nixsgx.url = "github:matter-labs/nixsgx";
     crane.url = "github:ipetkov/crane";
   };
 
@@ -106,7 +104,7 @@
           name = "tee-ai-agent";
           tag = "latest";
           copyToRoot = pkgs.buildEnv {
-            name = "image-root";
+            name = "tee-ai-agent-root";
             paths = [ tee-ai-agent ];
             pathsToLink = [ "/bin" ];
           };
@@ -123,28 +121,69 @@
           buildPhase = ''mkdir -p $out && tar -xvf layer.tar -C $out "nix" "./bin"'';
         };
 
-        # Reproducable gramine docker runtime for tee ai agent
-        gramine-docker = lib.tee.sgxGramineContainer {
+        # Docker image providing a reproducible gramine environment for tee ai agent enclave
+        #
+        # ## Usage
+        #
+        # Build and load image into docker:
+        #
+        # ```
+        # nix build .\#gramine-docker
+        # sudo docker load < result
+        # ```
+        #
+        # Run container:
+        #
+        # ```
+        # sudo docker run -i --init --rm \
+        #     -p 6969:6969 -p 8000:8000 \
+        #     --device /dev/sgx_enclave \
+        #     -v /var/run/aesmd/aesm.socket:/var/run/aesmd/aesm.socket \
+        #     gramine-tee-ai-agent:latest
+        # ```
+        #
+        # View mrenclave/signature struct
+        #
+        # ```
+        # sudo docker run -i --init --rm \
+        #     gramine-tee-ai-agent:latest \
+        #     "gramine-sgx-sigstruct-view app.sig"
+        # ```
+        gramine-docker = lib.tee.sgxGramineContainer rec {
+          appName = "tee-ai-agent";
           name = "gramine-tee-ai-agent";
           tag = "latest";
+          maxLayers = 125;
 
-          packages = [ tee-ai-agent ];
+          # Trusted packages to include in MRENCLAVE
+          packages = [
+            tee-ai-agent
+            pkgs.chromium
+          ];
           entrypoint = "${tee-ai-agent}/bin/tee_ai_agent";
 
+          # Enclave manifest configuration. Trusted files and other options are automatically
+          # setup based on packages, their dependencies, and provided entrypoint.
           manifest = {
             loader = {
               log_level = "debug";
               env = {
+                # Allow setting rust log from the host
                 RUST_LOG.passthrough = true;
+                # Hardcode headless-chrome to use our included version
+                CHROME = "${pkgs.lib.getExe pkgs.chromium}";
               };
             };
-
             sgx = {
               edmm_enable = false;
               enclave_size = "4G";
               max_threads = 16;
             };
           };
+
+          # Untrusted utility packages and startup script
+          extendedPackages = [ ];
+          extraCmd = ''echo "Starting ${name}"; is-sgx-available; gramine-sgx-sigstruct-view ${appName}.sig'';
 
           # TODO: qcnl config? Currently fallback to using default intel v4 collateral endpoint
           # sgx_default_qcnl_conf = '' ... '';
