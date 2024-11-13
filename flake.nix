@@ -166,7 +166,8 @@
           # setup based on packages, their dependencies, and provided entrypoint.
           manifest = {
             loader = {
-              log_level = "debug";
+              # For production: `none | error`, for development: `warning | debug | trace | all`
+              log_level = "error";
               env = {
                 # Allow setting rust log from the host
                 RUST_LOG.passthrough = true;
