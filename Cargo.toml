@@ -29,3 +29,5 @@ base64 = "0.21.7"
 aho-corasick = "1.1.3"
 headless_chrome = { git = "https://github.com/rust-headless-chrome/rust-headless-chrome" }
 hex = "0.4.3"
+configfs-tsm = "0.0.1"
+ed25519-dalek = {version = "2.1.1", features = ["rand_core", "serde"]}
